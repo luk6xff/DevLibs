@@ -1,8 +1,8 @@
 #include "mbed.h"
 #include "hm11.h"
 
-#define BTM222_PIN_TX PTC4   //UART2
-#define BTM222_PIN_RX PTC3   // 
+#define HM11_PIN_TX PTE22 //PTC4   // FRDM-KL25Z UART2 //PTE22  //YELLOW wire 
+#define HM11_PIN_RX PTE23//PTC3   //                  //PTE23  //ORANGE wire
 
 DigitalOut myled(LED1);
 
@@ -11,18 +11,22 @@ DigitalOut myled(LED1);
 
 int main() {
     Serial usbDebug(USBTX, USBRX);
-    HM11* hm11 = new HM11( BTM222_PIN_TX, BTM222_PIN_RX);
+    usbDebug.printf("HELLO WORLD !");  
+    HM11* hm11 = new HM11( HM11_PIN_TX, HM11_PIN_RX);
+    myled = 0;
     while(1) {
-        myled = 1;
+        //myled = 1;
+        wait(0.5);
+        usbDebug.printf("alive ");   
+        wait(0.5);
+        //if(!hm11->sendGetCommand("BAUD"))
+        //    usbDebug.printf("FAIL");  
+        hm11->sendDataToDevice("AT+BAUD?");
         wait(0.2);
-        myled = 0;
-        wait(0.2);
-        hm11->sendSetCommand("BAUD");
-        wait(1.2);
          while(hm11->isRxDataAvailable())                    
-                usbDebug.printf("data:  %c\r\n",hm11->getDataFromRx());   
+                usbDebug.printf("data:  %c\r\n",hm11->getDataFromRx());
             
-    wait(1.2);
+  
         
     }
 }
