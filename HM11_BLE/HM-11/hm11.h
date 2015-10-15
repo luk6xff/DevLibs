@@ -48,7 +48,7 @@
 #define HM11_SERIAL_TIMEOUT            10000
 #define HM11_SERIAL_EOL                "\r\n"
 
-static const char* hm11TestCommands[]={"AT","AT+","CONNL","RENEW","RESET","START","SLEEP","?","OK"};
+static const char* hm11TestCommands[]={"AT","AT+","CONNL","RENEW","RESET","START","SLEEP","?"};
 
 static const char* hm11SendCommands[]={"ADDR","BAUD","CLEAR","CON",
                                        "FILT","HELP","IMME","MODE",
@@ -64,6 +64,11 @@ static const char* HM11ReceiveMsgs[]={"OK","OK+","Get:","Set:","LOST","ADDR:","C
                     "START","SLEEP","TCON","RSSI:","RADD:","CONNF"
 };
 
+typedef enum hm11CommandsType_t{
+    HM11_TEST_COMMAND=0,
+    HM11_SEND_COMMAND,
+    HM11_NUM_OF_COMMAND_TYPE  
+}HM11CommandType;
 
 typedef enum hm11TestCommands_t{
     HM11_AT_TEST =0,
@@ -73,6 +78,7 @@ typedef enum hm11TestCommands_t{
     HM11_RESET_MODULE,  //
     HM11_WORK_IMMEDIATELY, //
     HM11_SLEEP_MODE,  //
+    HM11_QUERY_SIGN, 
     HM11_NUM_OF_TEST_COMMANDS    
 }HM11TestCommands;
 
@@ -114,9 +120,9 @@ public:
     HM11(const BufferedSerial & serial);    
     
     bool sendGetCommand(const char* command);
-    bool sendSetCommand(const char* command);
+    bool sendSetCommand(const char* command,int param);
     
-    bool isCorrectCommand(const char* command);
+    bool isCorrectCommand(const char* command, HM11CommandType cmdType);
     
     int sendDataToDevice(const char* data);
     
