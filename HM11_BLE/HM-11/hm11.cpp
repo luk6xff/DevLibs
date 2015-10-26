@@ -1,6 +1,6 @@
-
 #include "hm11.h"    
-#include "string.h"    
+#include "string.h" 
+   
     HM11::HM11(PinName uartTx , PinName uartRx):mSerial(uartTx,uartRx){
         
         mSerial.baud(HM11_SERIAL_DEFAULT_BAUD );
@@ -59,6 +59,25 @@
         }
         return false;
     }
+ //comands   
+    
+    bool HM11::testCommand(){
+        return false;
+    }
+    
+    
+    
+    bool HM11:: waitForData(int timeoutMs){
+        int endtime;  
+        Timer timer;
+        timer.start() ;
+        endtime= timer.read_ms()+timeoutMs;
+        while((timer.read_ms())<endtime){
+            if(isRxDataAvailable())
+                return true;
+        }
+        return false;
+    }
     
     
     int HM11::sendDataToDevice(const char* data){
@@ -72,5 +91,5 @@
     }
     
     
-      
+     
 
