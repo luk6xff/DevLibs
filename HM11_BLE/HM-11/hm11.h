@@ -132,7 +132,8 @@ typedef enum AdvertisingInterval{
     _4000ms,
     _5000ms,
     _6000ms,
-    _7000ms
+    _7000ms,
+    _INVALID_ADV_INTERVAL
 }AdvertisingInterval_t;
 
 
@@ -140,27 +141,29 @@ typedef enum AdvertisingType{
     _AdvertisingScanResponseConnectable=0,
     _LastDeviceConnectsIn1_28Seconds,
     _AdvertisingScanResponse,
-    _Advertising
+    _Advertising,
+    _INVALID_ADV_TYPE
 }AdvertisingType_t;
 
 typedef enum BaudRate{
-    _100ms=0,
-    _152_5ms,
-    _211_25ms,
-    _318_75ms,
-    _417_5ms,
-    _546_25ms,
-    _760ms,
-    _852_5ms,
-    _1022_5ms,
-    _1285ms,
-    _2000ms,
-    _3000ms,
-    _4000ms,
-    _5000ms,
-    _6000ms,
-    _7000ms
+    _9600=0,
+    _19200,
+    _38400,
+    _57600,
+    _115200,
+    _4800,
+    _2400,
+    _1200,
+    _230400,
+    _INVALID_BAUDRATE
 }BaudRate_t;
+
+typedef enum ConnectionStatus{
+      _L, // Connecting
+      _E, // Connect error
+      _F, // Connect Fail
+      _N  // No Address   
+}ConnectionStatus_t;
 
 
 class HM11{
@@ -327,22 +330,71 @@ public:
     
     
    /** Set  baud rate
-     * @param baud: 0:NotCompatible, 1:Compatible
+     * @param baud: Baudrate value
      * @return
      *   1 success,
      *   0 Error,
-     * Note: If setup to Value 7, After next power on, module will not support any
-     * AT Commands, until PIO0 is pressed, Module will change Baud to 9600.   
     */
-    bool setBaudRate(BaudRate baud);
+    bool setBaudRate(BaudRate_t baud);
+    
     
     
     /**Query  baud rate
      * @return
-     *   bit7 Swu=itch
-     *   0xFF -error
+     *   Baudrate_t - Baudrate value
     */
-    uint8_t queryBaudRate(void);    
+    BaudRate_t queryBaudRate(void);    
+    
+    /** Set  Characteristic value
+     * @param chValue (characteristic value): 0x0001~0xFFFE 
+     * @return
+     *   1 success,
+     *   0 Error,
+    */
+    bool setCharacteristic(uint16_t chValue);
+    
+    
+    
+    /**Query  Characteristic value
+     * @return
+     *  characteristic value: 0x0001~0xFFFE 
+     *  error :0xFFFF
+    */   
+    uint16_t queryCharacteristic(void); 
+    
+    
+   /** Try connect to last succeeded device
+     * @return
+     *  ConnectionStatus_t connection status.
+     * Notice: Only Central role is used.
+     * If remote device has already connected to other device or shut down,
+     * “OK+CONNF” will received after about 10 seconds. 
+    */
+    ConnectionStatus_t connectToLastDevice(void); 
+    
+    
+    /** Try connect an address 
+     * @param address e.g." 0017EA090909 " 
+     * @return connection status
+     * Notice: Only Central role is used.
+     * If remote device has already connected to other device or shut down,
+     * “OK+CONNF” will received after about 10 seconds.
+     *
+     *      Notice: Only central role is used.
+            If remote device has already connected to other device or shut down,
+            “OK+CONNF” will received after about 10 Seconds.
+            e.g.
+            Try to connect an device which MAC address is 00:17:EA:09:09:09
+            Send: AT+CON0017EA090909
+            May receive a reply:
+            OK+CONNA ========= Accept request, connecting 
+            OK+CONNE ========= Connect error
+            OK+CONN ========= Connected, if AT+NOTI1 is setup
+            OK+CONNF ========= Connect Failed, After 10 seconds  
+    */
+    ConnectionStatus_t connectToAnAddress(const char* address); 
+    
+    
     
 private:
     

@@ -1,0 +1,6 @@
+.hg
+*.hgignore
+*.o
+*.ar
+*.lib
+*.htm
