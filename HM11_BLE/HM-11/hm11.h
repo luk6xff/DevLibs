@@ -38,6 +38,46 @@
 // Factory default setting:
 // Name: HMSoft; Baud: 9600, N, 8, 1; Pin code: 000000; transmit 
 
+
+//DEMO - HOW TO USE:
+/*
+---------------------------------------- DEMO: 1st version -simple polling ----------------------------------------
+#include "mbed.h"
+#include "hm11.h"
+#include "crc16.h"
+
+
+#define HM11_PIN_TX PTE22 //FRDM-KL25Z UART2 
+#define HM11_PIN_RX PTE23  
+
+int main() {
+    Serial usbDebug(USBTX, USBRX);
+    usbDebug.printf("HELLO WORLD !");  
+    
+
+    HM11* hm11 = new HM11( HM11_PIN_TX, HM11_PIN_RX);
+    int counter =0;
+    while(1) {
+        //myled = 1;
+        wait(0.5);
+        usbDebug.printf("alive ");   
+        wait(0.5);
+        char buf[2];
+        snprintf(buf,2,"%d",counter++);
+        if(counter>9)
+            counter=0;
+        hm11->sendDataToDevice(buf);
+        wait(0.2);
+        
+         while(hm11->isRxDataAvailable())                    
+               usbDebug.printf("data:  %c\r\n",hm11->getDataFromRx());
+
+    }
+}
+*/
+
+
+
 #ifndef HM11_H
 #define HM11_H
 
