@@ -206,6 +206,13 @@ typedef enum ConnectionStatus{
 }ConnectionStatus_t;
 
 
+typedef struct ScanResult{
+    char* addr;
+    char*name;
+    uint8_t nr; //0-5
+}ScanResult_t;
+
+
 class HM11{
     
 public:    
@@ -435,7 +442,167 @@ public:
     ConnectionStatus_t connectToAnAddress(const char* address); 
     
     
+    /**Query PIO04~PIO11 input(output) state 
+     * @return
+     *  in/out state: 0x00~0xFF 
+     * 
+     * This command is added since V515 version. 
+    */   
+    uint8_t queryInputOutputState(void); 
     
+    
+    /**Set PIO collection rate 
+     * @param colRateSec (PIO collection rate): 00-99 unit[s]
+     * @return
+     *   1 success,
+     *   0 Error,
+     * 
+     * In mode 1, when PIO state is change, module will send OK+Col:[xx] to
+     * UART or remote side. This command is set send interval.
+     * This command is added since V515 version. 
+    */
+    bool setPioCollectionRate (uint8_t colRateSec);
+    
+    
+    
+    /**Query PIO collection rate 
+     * @return
+     *  PIO collection rate: 00-99 unit[s] 
+     *  error :0xFF
+    */   
+    uint8_t queryPioCollectionRate(void); 
+    
+    
+        
+    /**Start a device discovery scan
+     * @param [out] scanRes 
+     * @return
+     *   1 success,
+     *   0 Error,
+     
+        Please set AT+ROLE1 and AT+IMME1 first.
+        ---usage--:
+        Send: AT+DISC? 
+        Recv: OK+DISCS
+        Recv: OK+DISC:123456789012 (discovered device address information)
+        If AT+SHOW1 is setup, you will receive then Name information as follow
+        Recv: OK+NAME: xxx
+        After send Name value, will send two extra “\r\n” value ASCII byte
+        Recv: OK+DISC:234567890123
+        Recv: OK+NAME: xxx
+        After send Name value, will send two extra “\r\n” value ASCII byte  ...(Max results is 6, use array 0~5)
+        Recv: OK+DISCE
+        Connect to a discovered device: AT+CONN0, AT+CONN1……AT+CONN5 
+    */   
+    bool startDeviceDiscoveryScan(ScanResult_t* scanRes); 
+    
+    
+      
+    /**Connect to an Discovery device 
+     * @param [in] scanRes 
+     * @return
+     *   1 success,
+     *   0 Error,
+     
+        This command is use after execute AT+DISC?
+        This command will clear all discovery data. 
+    */   
+    bool connectToDiscoveryDevice(ScanResult_t* scanRes); 
+    
+    
+       
+    /**Set IBeaconDeployMode
+     * @param depMode - DeployMode_t
+     * @return
+     *   1 success,
+     *   0 Error,
+     * 
+     * After receive OK+DELO[para1], module will reset after 500ms.
+     * This command will let module into non-connectable status until next power on.
+    */
+    bool setIBeaconDeployMode(DeployMode_t depMode);
+    
+    
+   /**Set filter of HM modules 
+     * @param filter -FilterOfHmModules_t 
+     * @return
+     *   1 success,
+     *   0 Error,
+    */   
+    bool setFilterOfHmModules(FilterOfHmModules_t filter); 
+    
+    
+    /**Query filter of HM modules 
+     * @return
+     * Type of filter
+    */   
+    FilterOfHmModules_t queryFilterOfHmModules(void); 
+    
+   
+    
+   /**Remove bond information
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note1: Added in V524 version. 
+    */
+    bool removeBondInformation(void); 
+    
+    
+   /**System Help Information
+     * @param [in] char* helpInformation
+     * @return
+     *   1 success,
+     *   0 Error, 
+    */
+    bool getSystemHelpInformation(char* helpInformationBuf); 
+    
+       
+   /**Set Module work type 
+     * @param modWorkType -ModuleWorkType_t
+     * @return
+     *   1 success,
+     *   0 Error,
+     * This command is only used for Central role.
+    */   
+    bool setModuleWorkType(ModuleWorkType_t modWorkType); 
+    
+    
+    /**Query Module work type  
+     * @return
+     *      module Work Type -ModuleWorkType_t
+     * This command is only used for Central role. 
+    */   
+    ModuleWorkType_t queryModuleWorkType(void);
+    
+   
+   
+  
+        
+   /**Set Module iBeacon switch 
+     * @param turnOnOff
+            0: Turn off iBeacon
+     *      1: Turn on iBeacon 
+     * @return
+     *   1 success,
+     *   0 Error,
+     * This command is added since V517 version. 
+    */   
+    bool setModuleIBeaconSwitch (uint8_t turnOnOff); 
+    
+    
+    /**Query Module iBeacon switch  
+     * @return
+     *      0: Turn off iBeacon
+     *      1: Turn on iBeacon 
+     * This command is added since V517 version.  
+    */   
+    uint8_t queryModuleIBeaconSwitch (void);
+     
+   
+   
+   
+ 
 private:
     
     bool waitForData(int timeoutMs);
