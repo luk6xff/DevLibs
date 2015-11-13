@@ -4,3 +4,5 @@
 *.ar
 *.lib
 *.htm
+mbed
+*.bld

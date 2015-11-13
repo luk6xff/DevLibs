@@ -10,7 +10,7 @@
   Copyright (c) 2014 lukasz uszko
   Released under the MIT License (see http://mbed.org/license/mit)
 
-  Documentation regarding the MAX9611 might be found here: 
+  Documentation regarding the MAX44009  might be found here: 
   http://www.maximintegrated.com/en/products/analog/sensors-and-sensor-interface/MAX44009.html
 */
 
