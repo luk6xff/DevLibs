@@ -2,7 +2,7 @@
 
   @Author lukasz uszko(luszko@op.pl)
 
-  Tested on Silicon Labs Arm microcontrolers
+  Tested on Silicon Labs EFM32WG990F256 MCU
   
   Copyright (c) 2014 lukasz uszko
   Released under the MIT License (see http://mbed.org/license/mit)
