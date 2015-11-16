@@ -8,5 +8,5 @@
   Copyright (c) 2014 lukasz uszko
   Released under the MIT License (see http://mbed.org/license/mit)
 
-  Documentation regarding the MAX9611 might be found here: 
+  Documentation regarding the SI7020 might be found here: 
   http://www.silabs.com/Support%20Documents/TechnicalDocs/Si7020.pdf
