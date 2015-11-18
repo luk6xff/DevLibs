@@ -40,6 +40,7 @@
 
 
 //DEMO - HOW TO USE:
+//compiled and built under mbed
 /*
 ---------------------------------------- DEMO: 1st version -simple polling ----------------------------------------
 #include "mbed.h"
@@ -213,6 +214,28 @@ typedef struct ScanResult{
 }ScanResult_t;
 
 
+typedef enum DeployMode{
+    _BROAD_AND_SCAN=1, //Allowed to broadcast and scanning
+    _ONLY_BROAD,      //Only allow broadcast 
+    _INVALID_DEPLOY_MODE
+}DeployMode_t; 
+
+
+typedef enum FilterOfHmModules{
+    _ALL_BLE_MODULES=0, //Will find all BLE modules 
+    _ONLY_HM_MODULES, //Only find HM Modules 
+    _INVALID_FILTER
+}FilterOfHmModules_t;
+
+
+typedef enum ModuleWorkType{
+    _WAIT_UNTIL_AT_START_RECEIVED=0, //Will find all BLE modules 
+    _WORK_IMMEDIATELY, //Only find HM Modules 
+    _INVALID_MODULE_WORK_TYPE
+}ModuleWorkType_t;
+
+
+
 class HM11{
     
 public:    
@@ -226,6 +249,7 @@ public:
     bool isCorrectCommand(const char* command, HM11CommandType cmdType);
     
     int sendDataToDevice(const char* data);
+    int sendDataToDevice(uint8_t * byteData,uint8_t dataLength);
     
     int isRxDataAvailable();
     
@@ -579,7 +603,7 @@ public:
    
   
         
-   /**Set Module iBeacon switch 
+   /**Set Module iBeacon Switch
      * @param turnOnOff
             0: Turn off iBeacon
      *      1: Turn on iBeacon 
@@ -591,7 +615,7 @@ public:
     bool setModuleIBeaconSwitch (uint8_t turnOnOff); 
     
     
-    /**Query Module iBeacon switch  
+    /**Query iBeacon switch  
      * @return
      *      0: Turn off iBeacon
      *      1: Turn on iBeacon 
@@ -599,6 +623,30 @@ public:
     */   
     uint8_t queryModuleIBeaconSwitch (void);
      
+   
+   
+   
+        
+   /**Set iBeacon UUID 
+     * @param:  iBeacon Uuid - 0x00000001~0xFFFFFFFE 
+     * @return
+     *   1 success,
+     *   0 Error,
+     * This command is added since V520 version. 
+     * Default: iBeacon UUID is: 74278BDA-B644-4520-8F0C-720EAF059935.  -  uuid is 74278BDA
+    */   
+    bool setIBeaconUuid (uint32_t uuid); 
+    
+    
+    /**Query iBeacon Uuid 
+     * @return
+     *    iBeacon Uuid - 0x00000001~0xFFFFFFFE 
+     *    Error - 0x00
+     * This command is added since V520 version.  
+    */   
+    uint32_t queryIBeaconUuid(void);
+     
+   
    
    
    
