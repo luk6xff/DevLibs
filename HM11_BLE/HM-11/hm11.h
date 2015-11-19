@@ -235,6 +235,22 @@ typedef enum ModuleWorkType{
 }ModuleWorkType_t;
 
 
+typedef enum ModuleWorkMode{
+    _TRANSM_MODE=0, 
+    _PIO_COLLECTION_MODE,  
+    _REMOTE_CONTROL_MODE
+}ModuleWorkMode_t;
+
+
+
+
+typedef enum ParityBit{
+    _NONE=0, 
+    _EVEN,  
+    _ODD
+}ParityBit_t;
+
+
 
 class HM11{
     
@@ -624,32 +640,166 @@ public:
     uint8_t queryModuleIBeaconSwitch (void);
      
    
-   
-   
-        
+       
    /**Set iBeacon UUID 
      * @param:  iBeacon Uuid - 0x00000001~0xFFFFFFFE 
      * @return
      *   1 success,
      *   0 Error,
      * This command is added since V520 version. 
-     * Default: iBeacon UUID is: 74278BDA-B644-4520-8F0C-720EAF059935.  -  uuid is 74278BDA
-    */   
-    bool setIBeaconUuid (uint32_t uuid); 
-    
+     * Default: iBeacon UUID is: 74278BDA-B644-4520-8F0C-720EAF059935.  
+     * -  uuid1 is 74278BDA
+     * -  uuid2 is B644-4520
+     * -  uuid1 is 8F0C-720E
+     * -  uuid1 is AF059935
+     */   
+    bool setIBeaconUuid (uint32_t uuid0,uint32_t uuid1,uint32_t uuid2, uint32_t uuid3); 
+    bool setIBeaconUuid (uint32_t* uuid); 
     
     /**Query iBeacon Uuid 
+     * @param:  part of uuid - 0~3
      * @return
      *    iBeacon Uuid - 0x00000001~0xFFFFFFFE 
      *    Error - 0x00
      * This command is added since V520 version.  
     */   
-    uint32_t queryIBeaconUuid(void);
+    uint32_t queryIBeaconUuid(uint32_t* nr_of_uuid);
      
+    
+    
+     
+    /**Set Module iBeacon major version
+     * @param:  major version- 0x0001~0xFFFE  
+     * @return
+     *   1 success,
+     *   0 Error,
+     ^ Default: 0xFFE0
+     * This command is added since V517 version. 
+     */   
+    bool setIBeaconMajor(uint16_t mjrVersion); 
+    
+    
+    /**Query Module iBeacon major 
+     * @return
+     *    iBeacon major version- 0x0001~0xFFFE  
+     *    Error - 0x0000
+     * This command is added since V517 version.  
+    */   
+    uint16_t queryIBeaconMajor(void);
+    
+    
+    
+    /**Set Module iBeacon minor version
+     * @param:  minorversion- 0x0001~0xFFFE  
+     * @return
+     *   1 success,
+     *   0 Error,
+     ^ Default: 0xFFE1
+     * This command is added since V517 version. 
+     */   
+    bool setIBeaconMinor(uint16_t mnrVersion); 
+    
+    
+    /**Query Module iBeacon minor
+     * @return
+     *    iBeacon minor version- 0x0001~0xFFFE  
+     *    Error - 0x0000
+     * This command is added since V517 version.  
+    */   
+    uint16_t queryIBeaconMinor(void);
    
    
    
    
+   /**Set Module iBeacon Measured power 
+     * @param:  measured Power 0x0001~0xFFFE  
+     * @return
+     *   1 success,
+     *   0 Error,
+     ^ Default: 0xFFE1
+     * This command is added since V519 version. 
+     */   
+    bool setIBeaconMeasuredPower(uint16_t measuredPwr); 
+    
+    
+    /**Query Module iBeacon Measured power 
+     * @return
+     *    iBeacon minor version- 0x0001~0xFFFE  
+     *    Error - 0x0000
+     * This command is added since V519 version.  
+    */   
+    uint16_t queryIBeaconMeasuredPower(void);
+   
+   
+   
+   
+    /**Set Module Work Mode 
+     * @param:  WorkMode_t
+     * @return
+     *   1 success,
+     *   0 Error,
+     ^ Default: 0xFFE1
+     * This command is added since V519 version. 
+     */   
+    bool setModuleWorkMode(ModuleWorkMode_t workMode); 
+    
+    
+    /**Query Module Work Mode  
+     * @return
+     *    iBeacon minor version- 0x0001~0xFFFE  
+     *    Error - 0x0000
+     * This command is added since V519 version.  
+    */   
+    ModuleWorkMode_t  queryModuleWorkMode(void);
+   
+ 
+ 
+  
+   /**Set Module name 
+     * @param:  name, length<12
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setModuleName(char* name, uint8_t nameLength); 
+    
+    
+    /**Query Module name 
+     * @param:  name -> ptr to response buffer
+     * @return
+     *   1 success,
+     *   0 Error, 
+    */   
+    bool queryModuleName(char *name);
+ 
+ 
+ 
+  
+   /**Set Module parity bit
+     * @param:  ParityBit_t pBit
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setParityBit(ParityBit_t pBit); 
+    
+    
+    /**Query Module parity bit
+     * @return
+     *    -ParityBit_t val
+     */   
+    ParityBit_t queryParityBit(void);
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
 private:
     
