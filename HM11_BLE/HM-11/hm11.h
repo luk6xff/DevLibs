@@ -207,6 +207,7 @@ typedef enum ConnectionStatus{
 }ConnectionStatus_t;
 
 
+
 typedef struct ScanResult{
     char* addr;
     char*name;
@@ -251,6 +252,32 @@ typedef enum ParityBit{
 }ParityBit_t;
 
 
+typedef enum ModulePower{
+    _23dbm=0,       //-23dbm 
+    __6dbm,         //-6dbm 
+    _0dbm,          //0dbm 
+    _6dbm,          //6dbm
+    _INVALID_MOD_POWER       
+}ModulePower_t;
+
+
+
+typedef enum SensorType{
+    _NONE_SENSOR=0,     //None
+    _DHT11,             //dht11
+    _DS18B20,           //ds18b20
+    _INVALID_SENSOR_TYPE       
+}SensorType_t;
+
+
+typedef enum BondMode{
+    _NOT_NEED_PIN_CODE=0,        
+    _AUTH_NOT_NEED_PIN, 
+    _AUTH_WITH_PIN,         
+    _AUTH_AND_BOND,       
+    _INVALID_BOND_MODE      
+}BondMode_t;
+
 
 class HM11{
     
@@ -275,7 +302,6 @@ public:
     
     
     //commandMethods  
-    bool testCommand(void);
     char* queryModuleAddress(void);
     bool setAdvertisingInterval(AdvertisingInterval_t advInt);
     AdvertisingInterval_t queryAdvertisingInterval(void);
@@ -786,20 +812,424 @@ public:
     
     /**Query Module parity bit
      * @return
-     *    -ParityBit_t val
+     *    _ODD, _EVEN- val
+          _NONE - error
      */   
     ParityBit_t queryParityBit(void);
+    
+    
+    /**Set PIO1 output status (System LED) 
+     * @param:
+     *   uint8_t status[0~1] 
+     *      0 -Unconnected Output, 500ms High 500ms Low,Connected output High. 
+     *      1 -1: Unconnected output, Low, Connected output High. 
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setPio1OutputStatus(uint8_t status); 
+    
+    
+    /**Query PIO1 output status (System LED) 
+     * @return
+     *   uint8_t status[0~1] 
+     *      0 -Unconnected Output, 500ms High 500ms Low,Connected output High. 
+     *      1 -1: Unconnected output, Low, Connected output High. 
+     *   0xFF - error
+     */   
+    uint8_t queryPio1OutputStatus(void);
+    
+    
+    
+    
+    
+    /**Set PIO pins output /high or low 
+     * @param:
+     *      nrOfPio - is which PIO pin you want to Query/Set: Value: 2,3,4,5,6,7,8,9,A,B
+     *      val -  Query or setup value. Value: 0 is low and 1 is high      
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setPioPinsOutput(uint8_t nrOfPio, uint8_t val ); 
+    
+    
+    /**Query PIO pins output /high or low 
+     * @param:
+     *      nrOfPio - is which PIO pin you want to Query/Set: Value: 2,3,4,5,6,7,8,9,A,B
+     * @return
+     *   uint8_t  val -  state of given PIO: 0- low and 1 -high 
+     *   0xFF - error
+     */   
+    uint8_t queryPioPinsOutput(uint8_t nrOfPio);
  
  
  
  
+     /**Set Pin Code 
+     * @param:
+     *      pinCode - value: 0~999999
+     *      Default: 000000     
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setPinCode (uint32_t pinCode ); 
+    
+    
+    /**Query Pin Code  
+     * @return
+     *   pinCode - value: 0~999999
+     *   0xFFFFFFFF - error
+     */   
+    uint8_t queryPinCode (void);
  
  
  
  
+    /**Set Module Power  
+     * @param:
+     *      modPower - value: 0~999999
+     *      Default: 2    
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setModulePower(ModulePower_t modPower); 
+    
+    
+    /**Query Module Power 
+     * @return
+     *   modPower   
+     *   _NONE - error
+     */   
+    ModulePower_t queryModulePower (void);
  
  
  
+    /**Set Module sleep type 
+     * @param:
+     *      modSleepType[0~1] - value: 0-Auto sleep, 1-don’t auto sleep 
+     *      Default: 1    
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setModuleSleepType(uint8_t modSleepType ); 
+    
+    
+    /**Query Module sleep type 
+     * @return
+     *   modSleepType  
+     *   0xFF - error
+     */   
+   uint8_t queryModuleSleepType (void);
+ 
+ 
+ 
+    /**Restore all setup value to factory setup   
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool restoreAll(void); 
+    
+    
+    /**Restart module
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool restartModule(void);
+    
+    
+       
+    /**Set Master and Slaver Role
+     * @param:
+     *      role[0~1] - value: 0-Peripheral , 1-Central 
+     *      Default: 0    
+     * @return
+     *   1 success,
+     *   0 Error, 
+     */   
+    bool setMasterAndSlaveRole(uint8_t role); 
+    
+    
+    /**Query Master and Slaver Role 
+     * @return
+     *   role [0~1] - value: 0-Peripheral , 1-Central 
+     *   0xFF - error
+     */   
+    uint8_t queryMasterAndSlaveRole(void); 
+   
+   
+   
+    /**Query Query RSSI Value 
+     * @return
+     *   rssi - value: 
+     *   0xFF - error
+     * Require: AT+MODE value > 0 
+     * Note: This command only used by Remote device query when connected. 
+     */   
+    uint8_t queryRssiValue(void); 
+   
+   
+   
+    /**Query Last Connected Device Address 
+     * @return
+     *   addr - value: 
+     *   null - error
+     */   
+    char* queryLastConnectedDeviceAddress(void);
+   
+   
+   
+    /**Set Module Sensor work interval 
+     * @param:
+     *      interval [0~99] - values: 0-Save when connected, 1-Don’t Save ; Unit: minute
+     *      Default: 0    
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: This command is only use for HMSensor 
+     */   
+    bool setModuleSensorWorkInterval(uint8_t interval); 
+    
+    
+    /**Query module Sensor work interval 
+     * @return
+     *   interval [0~99] - values: 0-Save when connected, 1-Don’t Save ; Unit: minute
+     *   0xFF - error
+     * Note: This command is only use for HMSensor 
+     */   
+    uint8_t queryModuleSensorWorkInterval(void); 
+    
+    
+    
+    /**Work immediately  
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: This command is only used when AT+IMME1 is setup. 
+     */   
+    bool workImmediately(void);
+    
+    
+    
+    /**Query Module into sleep mode  
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: Only support Peripheral role.  
+     */   
+    bool queryModuleIntoSleepMode(void); 
+    
+    
+      
+    /**Set Module save connected address parameter 
+     * @param:
+     *      saveParam [0~1] - values: 0-Save when connected, 1-Don’t Save
+     *      Default: 0    
+     * @return
+     *   1 success,
+     *   0 Error,
+     */   
+    bool setModuleSaveConnectedAddressParam(uint8_t saveParam); 
+    
+    
+    /**Query Module save connected address parameter 
+     * @return
+     *  saveParam [0~1] - values: 0-Save when connected, 1-Don’t Save
+     *   0xFF - error
+     */   
+    uint8_t queryModuleSaveConnectedAddressParam(void);
+    
+    
+    
+    /**Set sensor type on module PIO11(HM-11 is PIO3)  
+     * @param:
+     *      SensorType_t sensorType 
+     *      Default: _NONE_SENSOR    
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: This command is use for HMSensor
+     */   
+    bool setSensorTypeOnModulePio(SensorType_t sensorType); 
+    
+    
+    /**Query sensor type on module PIO11(HM-11 is PIO3) 
+     * @return
+     *   SensorType_t sensorType 
+     *   0xFF - _INVALID_SENSOR_TYPE
+     * Note: This command is use for HMSensor
+     */   
+   SensorType_t querySensorTypeOnModulePio(void);  
+   
+   
+   
+    /**Set  discovery parameter 
+     * @param:
+     *      discoverParam [0~1] - values: 0-Don’t show name, 1-Show name 
+     *      Default: 0   
+     * @return
+     *   1 success,
+     *   0 Error,
+     *
+     * Note:Please execute AT+FILT0 first.
+     *      If AT+SHOW1 is setup, AT+DISC? Command will show you name information
+     *      included into scan result package. 
+     */   
+    bool setDiscoveryParameter (SensorType_t discoverParam); 
+    
+    
+    /**Query  discovery parameter 
+     * @return
+     *   discoverParam [0~1] - values: 0-Don’t show name, 1-Show name 
+     *   0xFF - error
+     */   
+    uint8_t queryDiscoveryParameter (void); 
+    
+    
+    
+    
+    /**Query Module Sensor Temperature and humidity(if has a sensor)  
+     * @param:
+     *  temperature[out]: 0~120
+     *  humidity[out]: 0~120
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: This command is use for HMSensor. 
+     *  This value is added into scan response data package. 
+     *  Data format is 0x02, 0x16, 0x00, 0xB0, [reserved], [temperature], [ humidity], [battery].
+     *  Android: Included in OnLeScan function result array, you can see it direct.
+     *  iOS: Included in LeScan function result NSDictionary struct, service id is 0xB000.    
+     */   
+    bool queryModuleSensorTempAndHumidity(uint8_t* temp, uint8_t* hum); 
+    
+    
+    
+    /**Query DS18B20 Sensor temperature  
+     * @param:
+     *  temperature[out]: 0~255
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note1: This command is use for HMSensor. 
+     * Note2: Added in V523 version.   
+     */   
+    bool queryDS18B20SensorTemperature (uint8_t* temp); 
+    
+    
+    
+    /**Set Module connect remote device timeout value 
+     * @param:
+     *      timeout- range: 0~999999; values: 0-Save when connected, 1-Don’t Save; Unit: ms
+     *      Default: 0    
+     * @return
+     *   1 success,
+     *   0 Error,
+     * Note: This value is only used for Central Role, when module has Last Connected address. 
+     */   
+    bool setModuleConnectRemoteDeviceTimeoutValue(uint32_t timeout); 
+    
+    
+    
+    /**Query connect remote device timeout value
+     * @return
+     *   timeout- range: 0~999999; values: 0-Save when connected, 1-Don’t Save; Unit: ms
+     *   0xFFFFFFFF - error
+     * Note: This value is only used for Central Role, when module has Last Connected address. 
+     */   
+    uint32_t queryModuleConnectRemoteDeviceTimeoutValue(void); 
+    
+    
+    
+    /**Set Module Bond Mode 
+     * @param:
+     *      BondMode_t bondMode;
+     *      Default: _NOT_NEED_PIN_CODE    
+     * @return
+     *   1 success,
+     *   0 Error,
+     *   
+     * Important: If your module version is less than V515, please don’t use this command. 
+     * Under android 4.3 AT+TYPE1 is same to AT+TYPE2.
+     * Note1: Value 3 is added in V524. 
+     */   
+    bool setModuleBondMode(BondMode_t bondMode); 
+    
+    
+    
+    /**Query Module Bond Mode 
+     * @return
+     *   BondMode_t bondMode;
+     *   0xFFFFFFFF - _INVALID_BOND_MODE
+     *
+     * Important: If your module version is less than V515, please don’t use this command. 
+     * Under android 4.3 AT+TYPE1 is same to AT+TYPE2.
+     * Note1: Value _AUTH_AND_BOND, is added in V524. 
+     */   
+    BondMode_t queryModuleBondMode(void); 
+    
+    
+    
+    
+    /**Set service UUID 
+     * @param:  service UUID - 0x0001~0xFFFE 
+     *          Default: 0xFFE0 
+     * @return:
+     *   1 success,
+     *   0 Error,
+     */   
+    bool setServiceUuid (uint16_t serviceUuid); 
+    
+    
+    /**Query service UUID 
+     * @return
+     *    service UUID - 0x0001~0xFFFE 
+     *    Error - 0xFFFF 
+     */   
+    uint16_t queryServiceUuid(void);
+    
+    
+    
+    /**Set UART sleep type 
+     * @param:  
+     *          sleepType-  range:[0~1] 
+     *                      value:  0-When module into sleep mode, you can wake up module through UART.  
+     *                              1-When module into sleep mode, shutdown UART too  
+     *          Default: 0
+     * @return:
+     *   1 success,
+     *   0 Error,
+     */   
+    bool setUartSleepType (uint8_t sleepType); 
+    
+    
+    /**Query UART sleep type 
+     * @return:
+     *    sleepType- range:[0~1] 
+     *               value:  0-When module into sleep mode, you can wake up module through UART.  
+     *                       1-When module into sleep mode, shutdown UART too 
+     *    Error - 0xFF
+     */   
+    uint8_t queryUartSleepType(void);
+    
+     
+    
+    /**Query Software Version   
+     * @return
+     *   software version- Ok,
+     *   null - Error,
+     * Note1: This command is use for HMSensor. 
+     * Note2: Added in V523 version.   
+     */   
+    char* querySoftwareVersion(void); 
+    
+    
+    
  
 private:
     
