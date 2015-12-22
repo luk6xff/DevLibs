@@ -1,6 +1,10 @@
 #include "hm11.h"    
 #include "string.h" 
    
+   
+   #define WAIT_FOR_DATA_TIMEOUT_MS 1000
+   #define DEFAULT_WAIT_FOR_DATA_TIMEOUT_MS 50  //required to get correct data
+   
     HM11::HM11(PinName uartTx , PinName uartRx):mSerial(uartTx,uartRx){
         
         mSerial.baud(HM11_SERIAL_DEFAULT_BAUD );
@@ -63,44 +67,97 @@
 
     
     bool HM11:: waitForData(int timeoutMs){
-        int endtime;  
+        int endTime;
+        int startTime; // sometimes not needed 50ms
         Timer timer;
-        timer.start() ;
-        endtime= timer.read_ms()+timeoutMs;
-        while((timer.read_ms())<endtime){
-            if(isRxDataAvailable())
+        timer.start() ;   
+        startTime=timer.read_ms();
+        endTime= startTime+timeoutMs;
+        while((timer.read_ms())<endTime){
+            if(isRxDataAvailable()&&(timer.read_ms()-startTime)>DEFAULT_WAIT_FOR_DATA_TIMEOUT_MS)
                 return true;
         }
         return false;
     }
     
     
-    int HM11::sendDataToDevice(const char* data){
+    int HM11::sendDataToDevice(const char* data)
+    {
     
         return mSerial.printf(data);
     }
     
-    int HM11::sendDataToDevice(uint8_t * byteData,uint8_t dataLength){
+    int HM11::sendDataToDevice(uint8_t * byteData,uint8_t dataLength)
+    {
     
         return mSerial.write(byteData,dataLength);
     }
-    
-    
-    
-    int HM11::isRxDataAvailable(){
+      
+    int HM11::isRxDataAvailable()
+    {
         return mSerial.readable();
+    }
+    
+    bool HM11::copyAvailableDataToBuf(uint8_t *buf, uint8_t bufLength)
+    {
+        int lenCounter =0;
+        if(buf==NULL||bufLength<1)
+            return false;
+        while(isRxDataAvailable()&&lenCounter<bufLength){                    
+            buf[lenCounter++]=getDataFromRx();
+        }
+        if(lenCounter==bufLength)
+            return true;
+        else 
+            return false;              
     }
     
 // public methods
 
-    char* HM11::queryModuleAddress(void){
-        
+    bool HM11::queryModuleAddress(char* addrBuf)
+    {
+        flushBuffers();
+        sendDataToDevice("AT+ADDR?");
+        char headerBuf[8];//for OK+ADDR:
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else{
+            copyAvailableDataToBuf((uint8_t*)headerBuf,sizeof(headerBuf));
+            if(strncmp(headerBuf,"OK+ADDR:",sizeof(headerBuf)) == 0){
+                if(copyAvailableDataToBuf((uint8_t*)addrBuf,12)){
+                    addrBuf[12]='\0';
+                    return true;
+                }
+            }
+        return false;         
+        }       
     }
     
-#if 0   
-    bool HM11::setAdvertisingInterval(AdvertisingInterval_t advInt);
-    AdvertisingInterval_t HM11::queryAdvertisingInterval(void);
+
+    bool HM11::setAdvertisingInterval(AdvertisingInterval_t advInt)
+    {
+        flushBuffers();
+        sendDataToDevice("AT+ADVI?");
+        char respBuf[9];
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else{
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+ Get:",sizeof(respBuf-1)) == 0){
+                if(respBuf[8]<_INVALID_ADV_INTERVAL){
+                    return true;
+                }
+            }
+        return false;         
+        }           
+    }
+    AdvertisingInterval_t HM11::queryAdvertisingInterval(void)
+    {
     
+    
+    }
+ 
+#if 0      
     bool HM11::setAdvertisingType(AdvertisingType_t advInt);
     
     AdvertisingType_t HM11::queryAdvertisingType(void);
