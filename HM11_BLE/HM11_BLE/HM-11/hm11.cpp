@@ -112,8 +112,57 @@
             return false;              
     }
     
+    
+    void  HM11::hexToString(uint32_t hex, char*str,uint8_t len)
+    {   
+        if(len>8||str==NULL)
+            return;
+        for(int i=0;i<len;i++){
+            int temp =(hex>>(i*4))&0x0F;
+            if(temp>=0&&temp<=9)
+            {
+                str[i]=temp+'0';
+            }
+            else
+            {
+                str[i]=temp+'A'-10;
+            }
+        }
+    }
+    
+    
+      //returns hex in  reverse direction
+    uint32_t HM11::strToHex(char*str,uint8_t len)
+    {
+        uint32_t ret=0;
+        uint8_t temp;
+        if(len<1||str==NULL)
+            return -1;
+        
+        for(int i=0;i<len&&str[i]!='\0';i++)
+        {
+            if(str[i]>='0'&&str[i]<='9')
+            {
+                temp=str[i]-'0';
+                ret|=temp<<(i*4);
+            }
+            else if(str[i]>='A'&&str[i]<='F')
+            {
+                temp=str[i]-'A'+10;
+                ret|=temp<<(i*4);
+            }
+            else if(str[i]>='a'&&str[i]<='f')
+            {
+                temp=str[i]-'a'+10;
+                ret|=temp<<(i*4);
+            }
+            else 
+                return -1;  //0xFFFFFFFF
+        }
+        return ret;
+    }
+    
 // public methods
-
     bool HM11::queryModuleAddress(char* addrBuf)
     {
         flushBuffers();
@@ -137,58 +186,221 @@
     bool HM11::setAdvertisingInterval(AdvertisingInterval_t advInt)
     {
         flushBuffers();
-        sendDataToDevice("AT+ADVI?");
-        char respBuf[9];
+        char buf[9]={"AT+ADVI"};        
+        hexToString((uint32_t)advInt, &buf[7],1);
+        sendDataToDevice(buf);
         if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
             return false;
-        else{
-            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
-            if(strncmp(respBuf,"OK+ Get:",sizeof(respBuf-1)) == 0){
-                if(respBuf[8]<_INVALID_ADV_INTERVAL){
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
+            if(strncmp(buf,"OK+Set:",7) == 0){
+                if(strToHex(&buf[7],1)<_INVALID_ADV_INTERVAL){
                     return true;
                 }
             }
-        return false;         
+            return false;         
         }           
     }
+    
+    
     AdvertisingInterval_t HM11::queryAdvertisingInterval(void)
     {
-    
-    
+        flushBuffers();
+        AdvertisingInterval_t retVal=_INVALID_ADV_INTERVAL;
+        char respBuf[8];        
+        sendDataToDevice("AT+ADVI?");
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+        {
+            //nothing
+        }
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf)-1) == 0){
+                retVal=(AdvertisingInterval_t)strToHex(&respBuf[sizeof(respBuf)-1],1);
+            }
+                                     
+        }
+        return retVal;  
     }
  
-#if 0      
-    bool HM11::setAdvertisingType(AdvertisingType_t advInt);
+     
+    bool HM11::setAdvertisingType(AdvertisingType_t advInt)
+    {
+        flushBuffers();
+        char buf[9]={"AT+ADTY"};        
+        hexToString((uint32_t)advInt, &buf[7],1);
+        sendDataToDevice(buf);
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
+            if(strncmp(buf,"OK+Set:",7) == 0){
+                if(strToHex(&buf[7],1)<_INVALID_ADV_TYPE){
+                    return true;
+                }
+            }
+            return false;         
+        }              
+    }
     
-    AdvertisingType_t HM11::queryAdvertisingType(void);
+    AdvertisingType_t HM11::queryAdvertisingType(void)
+    {
+        flushBuffers();
+        AdvertisingType_t retVal=_INVALID_ADV_TYPE;
+        char respBuf[8];        
+        sendDataToDevice("AT+ADTY?");
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+        {
+            //nothing
+        }
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf)-1) == 0){
+                retVal=(AdvertisingType_t)strToHex(&respBuf[sizeof(respBuf)-1],1);
+            }                                     
+        }
+        return retVal;  
+    }
      
      
-
-    bool HM11::setAncsSwitch(uint8_t enable);
+ 
+    bool HM11::setAncsSwitch(uint8_t enable)
+    {
+        flushBuffers();
+        char buf[9]={"AT+ANCS"};        
+        hexToString(enable, &buf[7],1);
+        sendDataToDevice(buf);
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
+            if(strncmp(buf,"OK+Set:",7) == 0){
+                if(strToHex(&buf[7],1)<0x2){
+                    return true;
+                }
+            }
+            return false;         
+        }              
+    }
     
     
 
-    uint8_t HM11::queryAncsSwitch(void);
+    uint8_t HM11::queryAncsSwitch(void)
+    {
+        flushBuffers();
+        uint8_t retVal=0xFF;
+        char respBuf[8];        
+        sendDataToDevice("AT+ANCS?");
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+        {
+            retVal=0xFF;
+        }
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf)-1) == 0){
+                retVal=strToHex(&respBuf[sizeof(respBuf)-1],1);
+            }                                     
+        }
+        return retVal;  
+    }
     
   
-    bool HM11::setWhitelistSwitch(uint8_t enable);
+    bool HM11::setWhitelistSwitch(uint8_t enable)
+    {
+        flushBuffers();
+        char buf[9]={"AT+ALLO"};        
+        hexToString(enable, &buf[7],1);
+        sendDataToDevice(buf);
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
+            if(strncmp(buf,"OK+Set:",7) == 0){
+                if(strToHex(&buf[7],1)<0x2){
+                    return true;
+                }
+            }
+            return false;         
+        }              
+    }
     
 
-    uint8_t HM11::queryWhitelistSwitch(void);
+    uint8_t HM11::queryWhitelistSwitch(void)
+    {
+        flushBuffers();
+        uint8_t retVal=0xFF;
+        char respBuf[8];        
+        sendDataToDevice("AT+ALLO?");
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+        {
+            retVal=0xFF;
+        }
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf)-1) == 0){
+                retVal=strToHex(&respBuf[sizeof(respBuf)-1],1);
+            }                                     
+        }
+        return retVal;  
+    }
     
-
-    bool HM11::setWhitelistMacAddress (uint8_t nrOfMacAddrLinkedToModule, const char* macAddress);
+//TODO
+ //   bool HM11::setWhitelistMacAddress (uint8_t nrOfMacAddrLinkedToModule, const char* macAddress);
     
+ //   char* HM11::queryWhitelistMacAddress(uint8_t nrOfMacAddrLinkedToModule);
 
-    char* HM11::queryWhitelistMacAddress(uint8_t nrOfMacAddrLinkedToModule);
 
-    bool HM11::setBatteryMonitorSwitch(uint8_t battSwitchEnable);
+    bool HM11::setBatteryMonitorSwitch(uint8_t battSwitchEnable)
+    {
+        flushBuffers();
+        char buf[9]={"AT+BATC"};        
+        hexToString(battSwitchEnable, &buf[7],1);
+        sendDataToDevice(buf);
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+            return false;
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
+            if(strncmp(buf,"OK+Set:",7) == 0){
+                if(strToHex(&buf[7],1)<0x2){
+                    return true;
+                }
+            }
+            return false;         
+        }              
+    }
     
  
-    uint8_t HM11::queryBatteryMonitorSwitch(void);
+    uint8_t HM11::queryBatteryMonitorSwitch(void)
+    {
+        flushBuffers();
+        uint8_t retVal=0xFF;
+        char respBuf[8];        
+        sendDataToDevice("AT+BATC?");
+        if(!waitForData(WAIT_FOR_DATA_TIMEOUT_MS))
+        {
+            retVal=0xFF;
+        }
+        else
+        {
+            copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
+            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf)-1) == 0){
+                retVal=strToHex(&respBuf[sizeof(respBuf)-1],1);
+            }                                     
+        }
+        return retVal;  
+    }
     
     
-
+#if 0
     uint8_t HM11::queryBatteryInformation(void);
 
     

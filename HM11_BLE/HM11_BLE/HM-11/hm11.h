@@ -1273,20 +1273,18 @@ public:
     char* querySoftwareVersion(void); 
     
     
-    
+   //temporary  here
     bool waitForData(int timeoutMs);
+    
+        //@returns len of the string
+    /*inline*/ void hexToString(uint32_t hex, char*str,uint8_t len);
+    /*inline */ uint32_t strToHex(char*str,uint8_t len);
 private:
     
    /// bool waitForData(int timeoutMs);
     BufferedSerial mSerial;
     
-    //@returns len of the string
-    inline int hexToString(uint32_t hex, char*str)
-    {
-        str[0]=(uint8_t)hex&0xFF;
-           
-        
-    }
+
     
     
 };
