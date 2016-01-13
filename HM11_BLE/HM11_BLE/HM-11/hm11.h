@@ -45,7 +45,6 @@
 ---------------------------------------- DEMO: 1st version -simple polling ----------------------------------------
 #include "mbed.h"
 #include "hm11.h"
-#include "crc16.h"
 
 
 #define HM11_PIN_TX PTE22 //FRDM-KL25Z UART2 
@@ -296,17 +295,62 @@ public:
     
     int isRxDataAvailable();
     
-    inline uint8_t getDataFromRx() {
+    bool copyAvailableDataToBuf(uint8_t *buf, uint8_t bufLength);
+    
+    inline uint8_t getDataFromRx() 
+    {
         return mSerial.getc();
     }
     
-    
+    inline void flushBuffers()
+    {
+        mSerial.clearRxBuf();
+        mSerial.clearTxBuf();
+    }
     //commandMethods  
-    char* queryModuleAddress(void);
+    /** query module address  
+     * @param enable out: module addr (buf size at least 12 bytes +'\0' eg. response: 20C38FF3B987)
+     * @return
+     *   1 on success,
+     *   0 on error.
+    */   
+    bool queryModuleAddress(char* addrBuf);
+    
+    
+    /** Set AdvertisingInterval
+     * @param  AdvertisingInterval_t , default: 100ms
+     * @return
+     *   1 on success,
+     *   0 on error.
+     * Note1: The maximum 1285ms recommendations form the IOS system. That is to
+     *        say, 1285ms is apple allowed, but in response to scan and connected all the
+     *        time will be long. 
+     * Note2: This command is added since V517 version.V522 allow max value 7000ms
+     */
     bool setAdvertisingInterval(AdvertisingInterval_t advInt);
+    
+    
+    /** query AdvertisingInterval
+     * @return
+     *   AdvertisingInterval_t current set adv_interval
+     */
     AdvertisingInterval_t queryAdvertisingInterval(void);
     
-    bool setAdvertisingType(AdvertisingType_t advInt);
+    
+    /** Set AdvertisingType
+     * @param  AdvertisingType_t, default: Adevertising,ScanResponse,Connectable
+     * @return
+     *   1 on success,
+     *   0 on error.
+     * Note1: Added since V519 
+     */
+    bool setAdvertisingType(AdvertisingType_t advType);
+    
+    
+    /** query AdvertisingType
+     * @return
+     *   AdvertisingType_t - current set advertising type
+     */
     AdvertisingType_t queryAdvertisingType(void);
      
      
@@ -1229,12 +1273,20 @@ public:
     char* querySoftwareVersion(void); 
     
     
+   //temporary  here
+    bool waitForData(int timeoutMs);
     
- 
+        //@returns len of the string
+    /*inline*/ void hexToString(uint32_t hex, char*str,uint8_t len);
+    /*inline */ uint32_t strToHex(char*str,uint8_t len);
 private:
     
-    bool waitForData(int timeoutMs);
+   /// bool waitForData(int timeoutMs);
     BufferedSerial mSerial;
+    
+
+    
+    
 };
 
 

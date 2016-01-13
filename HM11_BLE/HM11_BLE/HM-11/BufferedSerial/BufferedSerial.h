@@ -71,10 +71,10 @@
 class BufferedSerial : public RawSerial 
 {
 private:
-    Buffer <char> _rxbuf;
-    Buffer <char> _txbuf;
-    uint32_t      _buf_size;
-    uint32_t      _tx_multiple;
+    Buffer <char> rxbuf;
+    Buffer <char> txbuf;
+    uint32_t      buf_size;
+    uint32_t      tx_multiple;
  
     void rxIrq(void);
     void txIrq(void);
@@ -135,6 +135,10 @@ public:
      *  @return The number of bytes written to the Serial Port Buffer
      */
     virtual ssize_t write(const void *s, std::size_t length);
+    
+    void clearRxBuf(void);
+    
+    void clearTxBuf(void);
 };
 
 #endif
