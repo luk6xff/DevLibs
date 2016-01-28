@@ -39,7 +39,7 @@ bool US015::isMeasurementRuning()
 
 int US015::convertTimeToDistanceValue_mm(int timeUs)
 {
-    return ((timeUs) * (float)((SPEED_OF_SOUND)/1000))/2;  //(0.343mm/us)
+    return (int)((timeUs) * (float)((SPEED_OF_SOUND)/1000))/2;  //(0.343mm/us)
 }
 
 int US015::convertTimeToDistanceValue_cm(int timeUs)

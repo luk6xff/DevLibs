@@ -5,7 +5,7 @@
 
   @Author lukasz uszko(luszko@op.pl)
 
-  Tested on most mbed platforms
+  Tested on most of mbed platforms
   
   Copyright (c) 2016 lukasz uszko
   Released under the MIT License (see http://mbed.org/license/mit)
