@@ -4,8 +4,36 @@
 #include "mbed.h"
 #include "hm11.h"
 
-#define HM11_PIN_TX PTE22 //FRDM-KL25Z UART2 
-#define HM11_PIN_RX PTE23  
+//#define HM11_PIN_TX PTE22 //FRDM-KL25Z UART2 
+//#define HM11_PIN_RX PTE23  
+
+
+#define HM11_PIN_TX PC_10 //FOR STM32L053                      // FRDM-KL25Z UART2:PTE22  //YELLOW wire 
+#define HM11_PIN_RX PC_11
+/*
+static void testMethodDefault(void){
+    Serial usbDebug(USBTX, USBRX);
+    usbDebug.printf("HELLO WORLD !");  
+    
+
+    HM11* hm11 = new HM11( HM11_PIN_TX, HM11_PIN_RX);
+    int counter =0;
+    while(1) {
+        wait(0.5);
+        usbDebug.printf("alive ");   
+        wait(0.5);
+        char buf[2];
+        snprintf(buf,2,"%d",counter++);
+        if(counter>9)
+            counter=0;
+        hm11->sendDataToDevice(buf);
+        wait(0.2);
+        
+         while(hm11->isRxDataAvailable())                    
+               usbDebug.printf("data:  %c\r\n",hm11->getDataFromRx());
+    }
+}
+*/
 static void testMethod0(void){
     Serial usbDebug(USBTX, USBRX);
     usbDebug.printf("HELLO All!"); 
@@ -15,76 +43,32 @@ static void testMethod0(void){
     
     while(1) {
         char respBuf[40];
-        wait(0.8);
-        usbDebug.printf("\r\n--------queryModuleAddress----------\r\n");
+              
+        //-------------get--------------
+        wait(0.3);
+        usbDebug.printf("---queryModuleAddress---\r\n");
         if(hm11->queryModuleAddress(respBuf))
-            usbDebug.printf("MAC Addr: %s\r\n", respBuf);
+            usbDebug.printf("GET_ok: %s\r\n", respBuf);
         else
-            usbDebug.printf("queryModuleAddress FAILED\r\n");  
+            usbDebug.printf("GET_error\r\n");  
             
             
-            
-        wait(0.8);
-        usbDebug.printf("\r\n--------setAdvertisingInterval----------\r\n");
+        //-------------set--------------    
+        wait(0.3);
+        usbDebug.printf("---setAdvertisingInterval---\r\n");
         if(hm11->setAdvertisingInterval(_417_5ms))
-            usbDebug.printf("ADV_Interval_set: SET\r\n");
+            usbDebug.printf("SET_ok\r\n");
         else
-            usbDebug.printf("ADV_Interval_set FAILED\r\n");   
-        
-        usbDebug.printf("\r\n--------queryAdvertisingInterval----------\r\n");
+            usbDebug.printf("SET_error\r\n");
+        //-------------get-------------- 
+        wait(0.3); 
         if(hm11->queryAdvertisingInterval()==_417_5ms)
-            usbDebug.printf("ADV_Interval: %d\r\n", hm11->queryAdvertisingInterval());
+            usbDebug.printf("GET_ok: %d\r\n", hm11->queryAdvertisingInterval());
         else
-            usbDebug.printf("queryAdvertisingInterval FAILED %d\r\n",hm11->queryAdvertisingInterval());            
+            usbDebug.printf("GET_error %d\r\n",hm11->queryAdvertisingInterval());            
     }
 }
 
-static void testMethod1(void){
-    Serial usbDebug(USBTX, USBRX);
-    usbDebug.printf("HELLO WORLD !");  
-    
-
-    HM11* hm11 = new HM11( HM11_PIN_TX, HM11_PIN_RX);
-    while(1) {
-        static int counterLen=0;
-        usbDebug.printf("alive "); 
-#if 0        hm11->flushBuffers();  
-        hm11->sendDataToDevice("AT+ADDR?");
-        //wait(0.1);      
-        //while(hm11->isRxDataAvailable()&&counterLen++<8)                    
-         //      usbDebug.printf("data:  %c\r\n",hm11->getDataFromRx());
-        if(hm11->waitForData(1000)==false)
-        {
-            usbDebug.printf("!hm11->waitForData(500) ct=%d\r\n",counterLen);
-            counterLen++;
-        }
-        else
-        {
-            uint8_t headerBuf[8];
-            hm11->copyAvailableDataToBuf((uint8_t*)headerBuf,8);
-            usbDebug.printf("data: %c%c%c%c%c%c ct=%d\r\n",headerBuf[0],headerBuf[1],headerBuf[2],headerBuf[3],headerBuf[4],headerBuf[5],counterLen);
-            counterLen++;
-        }
- #endif       
-        hm11->flushBuffers();
-        char buf[9]={"AT+ADVI"};        
-        hm11->hexToString((uint32_t)_417_5ms, &buf[7],1);
-        hm11->sendDataToDevice(buf);
-        if(!hm11->waitForData(100))
-            usbDebug.printf("FAILED: %c%c%c%c%c%c\r\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
-        else
-        {
-            hm11->copyAvailableDataToBuf((uint8_t*)buf,sizeof(buf));
-            if(strncmp(buf,"OK+Set:",7) == 0){
-                if(hm11->strToHex(&buf[7],1)<_INVALID_ADV_INTERVAL){
-                     usbDebug.printf("data: %c%c%c%c%c%c\r\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[8]);
-                }
-            }
-            usbDebug.printf("datafailed: %c%c%c%c%c%c%c%c%c\r\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8]);         
-        }           
-
-    }
-}
 
 static void testMethod2(void){
      
@@ -93,34 +77,246 @@ static void testMethod2(void){
     
 
     HM11* hm11 = new HM11( HM11_PIN_TX, HM11_PIN_RX);
+    
+    int retVal =0;
     while(1) 
     { 
-        wait(0.3); 
-        hm11->flushBuffers();
-        AdvertisingInterval_t retVal=_760ms;
-        char respBuf[8];        
-        hm11->sendDataToDevice("AT+ADVI?");
-        if(!hm11->waitForData(100))
+  #if 0      
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setWhitelistMacAddress---\r\n");
+        if(hm11->setWhitelistMacAddress (1, "001122334455"))
+            usbDebug.printf("SET_ok: \r\n");
+        else
+           usbDebug.printf("SET_error: \r\n");        
+        //-------------get--------------
+        wait(0.3);
+        char addrBuf[15];   
+        if(hm11->queryWhitelistMacAddress(1, addrBuf, 15))
         {
-            //nothing
+            addrBuf[14]='\0';
+            usbDebug.printf("GET_ok: %s\r\n",addrBuf);
         }
         else
+           usbDebug.printf("GET_error: \r\n"); 
+           
+           
+           
+           
+   
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setBatteryMonitorSwitch---\r\n");
+        if(hm11->setBatteryMonitorSwitch(1))
+            usbDebug.printf("SET_ok: \r\n");
+        else
+           usbDebug.printf("SET_error: \r\n");     
+        //-------------get--------------
+        wait(0.3);
+        retVal= hm11->queryBatteryMonitorSwitch() ;
+         
+        if(retVal!=0xFF)
         {
-            hm11->copyAvailableDataToBuf((uint8_t*)respBuf,sizeof(respBuf));
-            if(strncmp(respBuf,"OK+Get:",sizeof(respBuf-1)) == 0){
-            usbDebug.printf("dataSSS %d\r\n",hm11->strToHex(&respBuf[sizeof(respBuf)-1],1));
-            }
-                                     
+            usbDebug.printf("GET_ok: %d\r\n",retVal);
         }
-         usbDebug.printf("data: %c%c%c%c%c%c%c%c %d\r\n",respBuf[0],respBuf[1],respBuf[2],respBuf[3],respBuf[4],respBuf[5],respBuf[6],respBuf[7],retVal);            
+        else
+           usbDebug.printf("GET_error: \r\n"); 
+        
+       
+       
+       
+        //-------------get--------------
+        wait(0.3);
+        usbDebug.printf("---queryBatteryInformation---\r\n");
+        retVal= hm11->queryBatteryInformation() ;
+         
+        if(retVal!=0xFF)
+        {
+            usbDebug.printf("GET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: \r\n"); 
+           
+           
+           
+           
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setBitFormat---\r\n");
+        retVal= hm11->setBitFormat(1) ;
+         
+        if(retVal==true)
+        {
+            usbDebug.printf("SET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error: \r\n");    
+        //-------------get--------------
+        wait(0.3);
+        retVal= hm11->queryBitFormat() ;        
+        if(retVal!=0xFF)
+        {
+            usbDebug.printf("GET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: \r\n"); 
+           
+           
+           
+           
+           
+           
+           
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setBaudRate---\r\n");
+        retVal= hm11->setBaudRate(_9600) ;       
+        if(retVal==true)
+        {
+            usbDebug.printf("SET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error: \r\n");    
+        //-------------get--------------
+        wait(0.3);
+        retVal= hm11->queryBaudRate() ;        
+        if(retVal!=_INVALID_BAUDRATE)
+        {
+            usbDebug.printf("GET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: \r\n");
+           
+           
+           
+           
+           
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setCharacteristic---\r\n");
+        retVal= hm11->setCharacteristic(0xEEFF) ;
+         
+        if(retVal==true)
+        {
+            usbDebug.printf("SET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error \r\n");    
+        //-------------get--------------
+        wait(0.3);
+        retVal= hm11->queryCharacteristic() ;        
+        if(retVal!=0xFFFF)
+        {
+            usbDebug.printf("GET_ok: 0x%x\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: \r\n");
+           
+           
+           
+           
+           
+           
+           
+           
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---connectToLastDevice---\r\n");
+        retVal= hm11->connectToLastDevice() ;
+         
+        if(retVal!=_INVALID_CONECTIONSTATUS)
+        {
+            usbDebug.printf("SET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error \r\n");    
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---connectToAnAddress---\r\n");
+        retVal= hm11->connectToAnAddress("001122334455") ;        
+        if(retVal!=_INVALID_CONECTIONSTATUS)
+        {
+            usbDebug.printf("SET_ok: 0x%x\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error: \r\n");   
+           
+ 
+
+        //-------------get--------------
+        wait(0.3);
+        usbDebug.printf("---queryInputOutputState---\r\n");
+        retVal= hm11->queryInputOutputState() ;        
+        if(retVal!=0xFF)
+        {
+            usbDebug.printf("GET_ok: 0x%x\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: 0x%x\r\n",retVal);
+      
+ #endif       
+        
+        
+        
+        //-------------set--------------
+        wait(0.3);
+        usbDebug.printf("---setPioCollectionRate---\r\n");
+        retVal= hm11->setPioCollectionRate (10) ;
+         
+        if(retVal)
+        {
+            usbDebug.printf("SET_ok: %d\r\n",retVal);
+        }
+        else
+           usbDebug.printf("SET_error \r\n");    
+        //-------------get--------------
+        wait(0.3);
+        retVal= hm11->queryPioCollectionRate() ;        
+        if(retVal!=0xFF)
+        {
+            usbDebug.printf("GET_ok: 0x%x\r\n",retVal);
+        }
+        else
+           usbDebug.printf("GET_error: \r\n");     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+      
     } 
 }
 
 
 int main() {
-
-    testMethod0();
-    //testMethod1();
-    //testMethod2();
+    //testMethodDefault();
+    //testMethod0();
+    testMethod2();
     return 0;
 }
+
+
+
+
+
+/*
+static void testGetVersion()
+{
+
+    char version[20];
+    if(hm11-> querySoftwareVersion(version, 20))
+    {
+         version[19]='\0';
+         usbDebug.printf("VERSION: %s\r\n",version);
+    }
+    else
+        usbDebug.printf("VERSION failed\r\n");  
+}
+*/

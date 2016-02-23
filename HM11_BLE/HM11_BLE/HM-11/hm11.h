@@ -5,7 +5,7 @@
 
   @Author lukasz uszko(luszko@op.pl)
 
-  Tested on FRDM-KL25Z
+  Tested on FRDM-KL25Z and STM32NUCLEO
   
   Copyright (c) 2014 lukasz uszko
   Released under the MIT License (see http://mbed.org/license/mit)
@@ -199,12 +199,14 @@ typedef enum BaudRate{
 }BaudRate_t;
 
 typedef enum ConnectionStatus{
+      _A, // Connecting to an address
       _L, // Connecting
       _E, // Connect error
       _F, // Connect Fail
-      _N  // No Address   
+      _N,  // No Address
+      _INVALID_CONECTIONSTATUS   
 }ConnectionStatus_t;
-
+static const char ConnectionStatusArr[]={'A','L','E','F','N'};
 
 
 typedef struct ScanResult{
@@ -295,7 +297,7 @@ public:
     
     int isRxDataAvailable();
     
-    bool copyAvailableDataToBuf(uint8_t *buf, uint8_t bufLength);
+    int copyAvailableDataToBuf(uint8_t *buf, uint8_t bufLength);
     
     inline uint8_t getDataFromRx() 
     {
@@ -407,16 +409,19 @@ public:
      *   1 on success,
      *   0 on error.
     */  
-    bool setWhitelistMacAddress (uint8_t nrOfMacAddrLinkedToModule, const char* macAddress);
+    bool setWhitelistMacAddress(uint8_t nrOfMacAddrLinkedToModule, const char* const macAddress);
     
     
     /** query whitelist mac address 
-     * @param nrOfMacAddrLinkedToModule |1,2,3
+     * @param:
+     *      [in]: nrOfMacAddrLinkedToModule |1,2,3
+     *      [in]: len of mac addr buf
+     *      [out]:macAddrBuf
      * @return
-     *   nr of mac addr
-     *   null -error.
+     *   true - ok
+     *   false - error
     */
-    char* queryWhitelistMacAddress(uint8_t nrOfMacAddrLinkedToModule);
+    bool queryWhitelistMacAddress(uint8_t nrOfMacAddrLinkedToModule, char* const macAddrBuf, uint8_t macAddrBufLen);
     
 
     /** Set battery monitor switch   
@@ -1263,22 +1268,25 @@ public:
     
      
     
-    /**Query Software Version   
-     * @return
-     *   software version- Ok,
-     *   null - Error,
+    /**Query Software Version  
+     * @param:
+     *      [in ] version buf len
+     *      [out] version
+     * @return:
+     *   1 success,
+     *   0 Error,
      * Note1: This command is use for HMSensor. 
      * Note2: Added in V523 version.   
      */   
-    char* querySoftwareVersion(void); 
+    bool querySoftwareVersion(char* ver,uint8_t bufLen); 
     
     
    //temporary  here
     bool waitForData(int timeoutMs);
     
         //@returns len of the string
-    /*inline*/ void hexToString(uint32_t hex, char*str,uint8_t len);
-    /*inline */ uint32_t strToHex(char*str,uint8_t len);
+    /*inline*/ bool hexToString(uint32_t hex, char*str,uint8_t len);
+    /*inline */ uint32_t strToHex(char*const str,uint8_t len);
 private:
     
    /// bool waitForData(int timeoutMs);
