@@ -1,5 +1,5 @@
-#ifndef _INV_MPU_DMP_MOTION_DRIVER_H_
-#define _INV_MPU_DMP_MOTION_DRIVER_H_
+#ifndef MPU6050_DMP_H_
+#define MPU6050_DMP_H_
 
 #define TAP_X               (0x01)
 #define TAP_Y               (0x02)
@@ -33,13 +33,13 @@
 
 #define INV_WXYZ_QUAT       (0x100)
 
-#include "InvMpu.h"
+#include "MPU6050.h"
 #include "helper_3dmath.h"
 
-class DMP_Motion_Driver : public InvMpu
+class MPU6050_DMP : public MPU6050
 {
     public:
-    DMP_Motion_Driver();
+    MPU6050_DMP();
     
     uint16_t inv_orientation_matrix_to_scalar(const signed char *mtx);
     int dmp_get_packet_length();

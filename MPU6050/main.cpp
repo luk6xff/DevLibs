@@ -1,19 +1,20 @@
 #include "mbed.h"
-#include "MPU6050.h"
-#include "InvMpu.h"
-#include "inv_mpu_dmp_motion_driver.h"
+#include "MPU6050_DMP.h"
 //MPU6050 INT - PC6
 //MPU6050 mpu6050;
 //InvMpu invMpu;
-DMP_Motion_Driver dmpMD;
+MPU6050_DMP dmpMD;
 Timer t;
 Serial pc(USBTX, USBRX); // tx, rx
 
 
+volatile bool mpuDataReady= false;
 
-
-
-
+static void eventOccured(void)
+{
+    mpuDataReady= true;
+}
+InterruptIn intPin(MPU6050_DEFAULT_INT_PIN);
 
 
 volatile uint32_t hal_timestamp = 0;
@@ -175,10 +176,10 @@ static inline void run_self_test(void)
 
 
 int main()
-{
+{      ///////dmpMD.register_int_cb(&eventOccured);   
+intPin.fall(&eventOccured);
     float sum = 0;
     uint32_t sumCount = 0;
-
     pc.baud(9600);
     
     t.start();
@@ -187,6 +188,7 @@ int main()
     uint8_t accel_fsr,  new_temp = 0;
     uint16_t gyro_rate, gyro_fsr;
     uint32_t timestamp;
+
     // Read the WHO_AM_I register, this is a good test of communication
     uint8_t whoami =dmpMD.getDeviceID(); //mpu6050.readByte(MPU6050_ADDRESS, WHO_AM_I_MPU6050);  // Read WHO_AM_I register for MPU-6050
     pc.printf("I AM 0x%x\n\r", whoami);
@@ -195,8 +197,9 @@ int main()
     
 
     
-    
+
   int result = dmpMD.mpu_init();
+
   if (result) {
       pc.printf("Could not initialize gyro.\n");
   }
@@ -268,32 +271,49 @@ int main()
         dmpMD.inv_orientation_matrix_to_scalar(gyroOrientation));
     dmpMD.dmp_register_tap_cb(tap_cb);
     dmpMD.dmp_register_android_orient_cb(android_orient_cb);
-    /*
-     * Known Bug -
-     * DMP when enabled will sample sensor data at 200Hz and output to FIFO at the rate
-     * specified in the dmp_set_fifo_rate API. The DMP will then sent an interrupt once
-     * a sample has been put into the FIFO. Therefore if the dmp_set_fifo_rate is at 25Hz
-     * there will be a 25Hz interrupt from the MPU device.
-     *
-     * There is a known issue in which if you do not enable DMP_FEATURE_TAP
-     * then the interrupts will be at 200Hz even if fifo rate
-     * is set at a different rate. To avoid this issue include the DMP_FEATURE_TAP
-     *
-     * DMP sensor fusion works only with gyro at +-2000dps and accel +-2G
-     */
+
     hal.dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP |
         DMP_FEATURE_ANDROID_ORIENT | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
-        DMP_FEATURE_GYRO_CAL;
+        DMP_FEATURE_GYRO_CAL|DMP_FEATURE_PEDOMETER ;
     dmpMD.dmp_enable_feature(hal.dmp_features);
     dmpMD.dmp_set_fifo_rate(DEFAULT_MPU_HZ);
+    
+    dmpMD.dmp_set_interrupt_mode(DMP_INT_GESTURE); // onTap and orient
+
+    dmpMD.mpu_set_dmp_state(1);
+    hal.dmp_on = 1;
     pc.printf("__INIT FINISHED__\n");
     while(1)
     {   
         int32_t temp;
-        dmpMD.mpu_get_temperature(&temp,NULL);  // Read the x/y/z adc values
-        float temperature = (temp) / 340. + 36.53; // Temperature in degrees Centigrade
-        pc.printf(" temperature = %d  C\n\r", temp);
-        wait_ms(1000);
+        if(!dmpMD.mpu_get_temperature(&temp,NULL)) 
+        {
+            float temperature = (temp) / 340. + 36.53; // Temperature in degrees Centigrade
+            pc.printf(" temperature = %d  C\n\r", temp);
+        }
+        else
+            pc.printf(" temp read failedd  C\n\r");
+            
+        uint32_t steps;   
+        if(!dmpMD.dmp_get_pedometer_step_count(&steps)) 
+        {
+            pc.printf(" steps = %d  \n\r", steps);
+        }
+        else
+            pc.printf(" steps read failedd  \n\r");
+            
+            
+        if( mpuDataReady)
+        {
+            int16_t gyro[3], accel_short[3], sensors;
+            uint8_t more;
+            int32_t accel[3], quat[4], temperature;
+            dmpMD.dmp_read_fifo(gyro, accel_short, quat, NULL, &sensors, &more);
+            mpuDataReady=false;
+            wait_ms(500);
+        }
+        //wait_ms(1000);
+        
     }
     
     

@@ -9,7 +9,7 @@
  *  @brief       Hardware drivers to communicate with sensors via I2C.
  *
  *  @{
- *      @file       inv_mpu_dmp_motion_driver.c
+ *      @file       inv_mpu_MPU6050_DMP.c
  *      @brief      DMP image and interface functions.
  *      @details    All functions are preceded by the dmp_ prefix to
  *                  differentiate among MPL and general driver function calls.
@@ -19,8 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "InvMpu.h"
-#include "inv_mpu_dmp_motion_driver.h"
+#include "MPU6050_DMP.h"
 #include "dmpKey.h"
 #include "dmpmap.h"
 
@@ -475,7 +474,7 @@ inline uint16_t inv_row_2_scale(const signed char *row)
     return b;
 }
 
-uint16_t DMP_Motion_Driver::inv_orientation_matrix_to_scalar(const signed char *mtx)
+uint16_t MPU6050_DMP::inv_orientation_matrix_to_scalar(const signed char *mtx)
 {
     uint16_t scalar;
 
@@ -497,12 +496,12 @@ uint16_t DMP_Motion_Driver::inv_orientation_matrix_to_scalar(const signed char *
 }
 
 
-DMP_Motion_Driver::DMP_Motion_Driver()
+MPU6050_DMP::MPU6050_DMP()
 {
-    InvMpu();   
+    MPU6050();   
 }
 
-void DMP_Motion_Driver::reset()
+void MPU6050_DMP::reset()
 {
     mpu_reset();   
 }
@@ -511,7 +510,7 @@ void DMP_Motion_Driver::reset()
  *  @brief  Load the DMP with this image.
  *  @return 0 if successful.
  */
-int DMP_Motion_Driver::dmp_load_motion_driver_firmware(void)
+int MPU6050_DMP::dmp_load_motion_driver_firmware(void)
 {
     return mpu_load_firmware(DMP_CODE_SIZE, dmp_memory, sStartAddress,
         DMP_SAMPLE_RATE);
@@ -524,7 +523,7 @@ int DMP_Motion_Driver::dmp_load_motion_driver_firmware(void)
  *  @param[in]  orient  Gyro and accel orientation in body frame.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_orientation(uint16_t orient)
+int MPU6050_DMP::dmp_set_orientation(uint16_t orient)
 {
     uint8_t gyro_regs[3], accel_regs[3];
     const uint8_t gyro_axes[3] = {DINA4C, DINACD, DINA6C};
@@ -579,7 +578,7 @@ int DMP_Motion_Driver::dmp_set_orientation(uint16_t orient)
  *  @param[in]  bias    Gyro biases in q16.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_gyro_bias(int32_t *bias)
+int MPU6050_DMP::dmp_set_gyro_bias(int32_t *bias)
 {
     int32_t gyro_bias_body[3];
     uint8_t regs[4];
@@ -631,7 +630,7 @@ int DMP_Motion_Driver::dmp_set_gyro_bias(int32_t *bias)
  *  @param[in]  bias    Accel biases in q16.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_accel_bias(int32_t *bias)
+int MPU6050_DMP::dmp_set_accel_bias(int32_t *bias)
 {
     int32_t accel_bias_body[3];
     uint8_t regs[12];
@@ -683,7 +682,7 @@ int DMP_Motion_Driver::dmp_set_accel_bias(int32_t *bias)
  *  @param[in]  rate    Desired fifo rate (Hz).
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_fifo_rate(uint16_t rate)
+int MPU6050_DMP::dmp_set_fifo_rate(uint16_t rate)
 {
     const uint8_t regs_end[12] = {DINAFE, DINAF2, DINAAB,
         0xc4, DINAAA, DINAF1, DINADF, DINADF, 0xBB, 0xAF, DINADF, DINADF};
@@ -709,7 +708,7 @@ int DMP_Motion_Driver::dmp_set_fifo_rate(uint16_t rate)
  *  @param[out] rate    Current fifo rate (Hz).
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_get_fifo_rate(uint16_t *rate)
+int MPU6050_DMP::dmp_get_fifo_rate(uint16_t *rate)
 {
     rate[0] = dmp.fifo_rate;
     return 0;
@@ -721,7 +720,7 @@ int DMP_Motion_Driver::dmp_get_fifo_rate(uint16_t *rate)
  *  @param[in]  thresh  Tap threshold, in mg/ms.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_tap_thresh(uint8_t axis, uint16_t thresh)
+int MPU6050_DMP::dmp_set_tap_thresh(uint8_t axis, uint16_t thresh)
 {
     uint8_t tmp[4], accel_fsr;
     float scaled_thresh;
@@ -787,7 +786,7 @@ int DMP_Motion_Driver::dmp_set_tap_thresh(uint8_t axis, uint16_t thresh)
  *  @param[in]  axis    1, 2, and 4 for XYZ, respectively.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_tap_axes(uint8_t axis)
+int MPU6050_DMP::dmp_set_tap_axes(uint8_t axis)
 {
     uint8_t tmp = 0;
 
@@ -805,7 +804,7 @@ int DMP_Motion_Driver::dmp_set_tap_axes(uint8_t axis)
  *  @param[in]  min_taps    Minimum consecutive taps (1-4).
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_tap_count(uint8_t min_taps)
+int MPU6050_DMP::dmp_set_tap_count(uint8_t min_taps)
 {
     uint8_t tmp;
 
@@ -823,7 +822,7 @@ int DMP_Motion_Driver::dmp_set_tap_count(uint8_t min_taps)
  *  @param[in]  time    Milliseconds between taps.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_tap_time(uint16_t time)
+int MPU6050_DMP::dmp_set_tap_time(uint16_t time)
 {
     uint16_t dmp_time;
     uint8_t tmp[2];
@@ -839,7 +838,7 @@ int DMP_Motion_Driver::dmp_set_tap_time(uint16_t time)
  *  @param[in]  time    Max milliseconds between taps.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_tap_time_multi(uint16_t time)
+int MPU6050_DMP::dmp_set_tap_time_multi(uint16_t time)
 {
     uint16_t dmp_time;
     uint8_t tmp[2];
@@ -857,7 +856,7 @@ int DMP_Motion_Driver::dmp_set_tap_time_multi(uint16_t time)
  *  @param[in]  thresh  Gyro threshold in dps.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_shake_reject_thresh(int32_t sf, uint16_t thresh)
+int MPU6050_DMP::dmp_set_shake_reject_thresh(int32_t sf, uint16_t thresh)
 {
     uint8_t tmp[4];
     int32_t thresh_scaled = sf / 1000 * thresh;
@@ -876,7 +875,7 @@ int DMP_Motion_Driver::dmp_set_shake_reject_thresh(int32_t sf, uint16_t thresh)
  *  @param[in]  time    Time in milliseconds.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_shake_reject_time(uint16_t time)
+int MPU6050_DMP::dmp_set_shake_reject_time(uint16_t time)
 {
     uint8_t tmp[2];
 
@@ -894,7 +893,7 @@ int DMP_Motion_Driver::dmp_set_shake_reject_time(uint16_t time)
  *  @param[in]  time    Time in milliseconds.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_shake_reject_timeout(uint16_t time)
+int MPU6050_DMP::dmp_set_shake_reject_timeout(uint16_t time)
 {
     uint8_t tmp[2];
 
@@ -909,7 +908,7 @@ int DMP_Motion_Driver::dmp_set_shake_reject_timeout(uint16_t time)
  *  @param[out] count   Number of steps detected.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_get_pedometer_step_count(uint32_t *count)
+int MPU6050_DMP::dmp_get_pedometer_step_count(uint32_t *count)
 {
     uint8_t tmp[4];
     if (!count)
@@ -930,7 +929,7 @@ int DMP_Motion_Driver::dmp_get_pedometer_step_count(uint32_t *count)
  *  @param[in]  count   New step count.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_pedometer_step_count(uint32_t count)
+int MPU6050_DMP::dmp_set_pedometer_step_count(uint32_t count)
 {
     uint8_t tmp[4];
 
@@ -946,7 +945,7 @@ int DMP_Motion_Driver::dmp_set_pedometer_step_count(uint32_t count)
  *  @param[in]  time    Walk time in milliseconds.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_get_pedometer_walk_time(uint32_t *time)
+int MPU6050_DMP::dmp_get_pedometer_walk_time(uint32_t *time)
 {
     uint8_t tmp[4];
     if (!time)
@@ -966,7 +965,7 @@ int DMP_Motion_Driver::dmp_get_pedometer_walk_time(uint32_t *time)
  *  a race condition if called while the pedometer is enabled.
  *  @param[in]  time    New walk time in milliseconds.
  */
-int DMP_Motion_Driver::dmp_set_pedometer_walk_time(uint32_t time)
+int MPU6050_DMP::dmp_set_pedometer_walk_time(uint32_t time)
 {
     uint8_t tmp[4];
 
@@ -996,7 +995,7 @@ int DMP_Motion_Driver::dmp_set_pedometer_walk_time(uint32_t time)
  *  @param[in]  mask    Mask of features to enable.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_enable_feature(uint16_t mask)
+int MPU6050_DMP::dmp_enable_feature(uint16_t mask)
 {
     uint8_t tmp[10];
 
@@ -1113,7 +1112,7 @@ int DMP_Motion_Driver::dmp_enable_feature(uint16_t mask)
     return 0;
 }
 
-int DMP_Motion_Driver::dmp_get_packet_length()
+int MPU6050_DMP::dmp_get_packet_length()
 {
     return dmp.packet_length;
 }
@@ -1123,7 +1122,7 @@ int DMP_Motion_Driver::dmp_get_packet_length()
  *  @param[out] Mask of enabled features.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_get_enabled_features(uint16_t *mask)
+int MPU6050_DMP::dmp_get_enabled_features(uint16_t *mask)
 {
     mask[0] = dmp.feature_mask;
     return 0;
@@ -1138,7 +1137,7 @@ int DMP_Motion_Driver::dmp_get_enabled_features(uint16_t *mask)
  *  @param[in]  enable  1 to enable gyro calibration.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_enable_gyro_cal(uint8_t enable)
+int MPU6050_DMP::dmp_enable_gyro_cal(uint8_t enable)
 {
     if (enable) {
         uint8_t regs[9] = {0xb8, 0xaa, 0xb3, 0x8d, 0xb4, 0x98, 0x0d, 0x35, 0x5d};
@@ -1156,7 +1155,7 @@ int DMP_Motion_Driver::dmp_enable_gyro_cal(uint8_t enable)
  *  @param[in]  enable  1 to enable 3-axis quaternion.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_enable_lp_quat(uint8_t enable)
+int MPU6050_DMP::dmp_enable_lp_quat(uint8_t enable)
 {
     uint8_t regs[4];
     if (enable) {
@@ -1180,7 +1179,7 @@ int DMP_Motion_Driver::dmp_enable_lp_quat(uint8_t enable)
  *  @param[in]   enable  1 to enable 6-axis quaternion.
  *  @return      0 if successful.
  */
-int DMP_Motion_Driver::dmp_enable_6x_lp_quat(uint8_t enable)
+int MPU6050_DMP::dmp_enable_6x_lp_quat(uint8_t enable)
 {
     uint8_t regs[4];
     if (enable) {
@@ -1202,7 +1201,7 @@ int DMP_Motion_Driver::dmp_enable_6x_lp_quat(uint8_t enable)
  *  @return     0 if successful.
  */
 //static int decode_gesture(uint8_t *gesture)
-int DMP_Motion_Driver::decode_gesture(uint8_t *gesture)
+int MPU6050_DMP::decode_gesture(uint8_t *gesture)
 {
     uint8_t tap, android_orient;
 
@@ -1234,7 +1233,7 @@ int DMP_Motion_Driver::decode_gesture(uint8_t *gesture)
  *  @param[in]  mode    DMP_INT_GESTURE or DMP_INT_CONTINUOUS.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_set_interrupt_mode(uint8_t mode)
+int MPU6050_DMP::dmp_set_interrupt_mode(uint8_t mode)
 {
     const uint8_t regs_continuous[11] =
         {0xd8, 0xb1, 0xb9, 0xf3, 0x8b, 0xa3, 0x91, 0xb6, 0x09, 0xb4, 0xd9};
@@ -1273,7 +1272,7 @@ int DMP_Motion_Driver::dmp_set_interrupt_mode(uint8_t mode)
  *  @param[out] more        Number of remaining packets.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_read_fifo(int16_t *gyro,int16_t *accel, int32_t *quat,
+int MPU6050_DMP::dmp_read_fifo(int16_t *gyro,int16_t *accel, int32_t *quat,
     uint32_t *timestamp,int16_t *sensors, uint8_t *more)
 {
     uint8_t fifo_data[MAX_PACKET_LENGTH];
@@ -1367,7 +1366,7 @@ int DMP_Motion_Driver::dmp_read_fifo(int16_t *gyro,int16_t *accel, int32_t *quat
  *  @param[in]  func    Callback function.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_register_tap_cb(void (*func)(uint8_t, uint8_t))
+int MPU6050_DMP::dmp_register_tap_cb(void (*func)(uint8_t, uint8_t))
 {
     dmp.tap_cb = func;
     return 0;
@@ -1378,14 +1377,14 @@ int DMP_Motion_Driver::dmp_register_tap_cb(void (*func)(uint8_t, uint8_t))
  *  @param[in]  func    Callback function.
  *  @return     0 if successful.
  */
-int DMP_Motion_Driver::dmp_register_android_orient_cb(void (*func)(uint8_t))
+int MPU6050_DMP::dmp_register_android_orient_cb(void (*func)(uint8_t))
 {
     dmp.android_orient_cb = func;
     return 0;
 }
 
 
-int DMP_Motion_Driver::dmpGetGravity(VectorFloat *v, Quaternion *q) 
+int MPU6050_DMP::dmpGetGravity(VectorFloat *v, Quaternion *q) 
 {
     v -> x = 2 * (q -> x*q -> z - q -> w*q -> y);
     v -> y = 2 * (q -> w*q -> x + q -> y*q -> z);
@@ -1393,7 +1392,7 @@ int DMP_Motion_Driver::dmpGetGravity(VectorFloat *v, Quaternion *q)
     return 0;
 }
 
-int DMP_Motion_Driver::dmpGetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity) 
+int MPU6050_DMP::dmpGetYawPitchRoll(float *data, Quaternion *q, VectorFloat *gravity) 
 {
     // yaw: (about Z axis)
     data[0] = atan2(2*q -> x*q -> y - 2*q -> w*q -> z, 2*q -> w*q -> w + 2*q -> x*q -> x - 1);
