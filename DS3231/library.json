@@ -1,0 +1,25 @@
+{
+    "name": "DS3231",
+    "description": "DS3231 RTC module library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino"
+    ],
+    "keywords": [
+        "DS3231",
+        "RTC"
+    ],
+    "version": "0.1.0",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/DS3231"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/DS3231"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}
