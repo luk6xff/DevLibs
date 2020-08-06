@@ -435,6 +435,4 @@ extern void tm1637_set_clk(tm1637* const dev, tm1637_pin_state state);
 }
 #endif
 
-
 #endif
-
