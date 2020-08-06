@@ -1,8 +1,7 @@
-.hg
 *.hgignore
 *.o
 *.ar
 *.lib
 *.htm
-mbed
 *.bld
+*.elf
