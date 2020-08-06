@@ -1,0 +1,25 @@
+{
+    "name": "TEMT6000",
+    "description": "TEMT6000 ambient light sensor library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino"
+    ],
+    "keywords": [
+        "TEMT6000",
+        "Light Sensor"
+    ],
+    "version": "0.1.0",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/TEMT6000"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/TEMT6000"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}
