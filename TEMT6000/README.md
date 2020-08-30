@@ -1,7 +1,7 @@
-# TEMT6000 RTC module library
+# TEMT6000 ambient light sensor library
 
 ## Description
-TEMT6000 ambient light sensorplatform independent library
+TEMT6000 ambient light sensor platform independent library
 
 ## Usage
 Simple demo code how to use the library on [ARDUINO] platform
