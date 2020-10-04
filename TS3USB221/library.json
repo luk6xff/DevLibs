@@ -1,0 +1,24 @@
+{
+    "name": "TS3USB221",
+    "description": "TS3USB221 High-speed USB 2.0 (480-Mbps) 1:2 multiplexer – demultiplexer library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino"
+    ],
+    "keywords": [
+        "TS3USB221"
+    ],
+    "version": "0.1.0",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/TS3USB221"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/TS3USB221"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}
