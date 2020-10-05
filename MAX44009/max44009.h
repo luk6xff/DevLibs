@@ -1,97 +1,85 @@
-/*
-  @file max44009.h
-  
-  @brief MAX44009 ambient light sensor with an I²C digital output Breakout I2C Library      
+/**
+ *  @brief:   MAX44009 ambient light sensor library
+ *  @author:  luk6xff
+ *  @email:   lukasz.uszko@gmail.com
+ *  @date:    2020-09-02
+ *  @license: MIT
+ */
 
-  @Author lukasz uszko(luszko@op.pl)
+#ifndef __MAX44009_H__
+#define __MAX44009_H__
 
-  Tested on FRDM-KL46Z and FRDM-KL25Z
-  
-  Copyright (c) 2014 lukasz uszko
-  Released under the MIT License (see http://mbed.org/license/mit)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  Documentation regarding the MAX44009  might be found here: 
-  http://www.maximintegrated.com/en/products/analog/sensors-and-sensor-interface/MAX44009.html
-*/
-
-
-
-
-
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
 
 
+#define MAX44009_I2C_ADDRESS1    0x4A  // A0 PIN is conected to GND
+#define MAX44009_I2C_ADDRESS2    0x4B  // A0 PIN is conected to VDD
 
-#ifndef MAX44009_H
-#define MAX44009_H
+/**
+ * @brief max44009 dev object
+ */
+typedef struct
+{
+    uint8_t i2c_addr;   // I2C memory address
+    void* platform_dev;
+} max44009;
 
-#include "mbed.h"
+/**
+ * @brief Initialize eeprom.
+ *
+ * @param dev max44009 device object
+ * @return True on success, false otherwise
+ */
+bool max44009_init(max44009* const dev);
 
-
-
-#define MAX44009_I2C_ADDRESS 0x97  //1001 1011 -- A0 PIN is conected to VDD
-#define UNSET_MAX44009_LUX_INTENSITY_VALUE -999 
-
-
-
-class MAX44009{   
-    
-    
-    
- public:   
- 
-   /** Create an MAX44009 instance
-     * @param sda pin 
-     * @param scl pin 
-     * @param address: I2C slave address 
-     */
-    MAX44009(PinName sda, PinName scl,int i2cFrequency=100000,int address = MAX44009_I2C_ADDRESS); 
-
-    /** Create a MAX44009 instance
-     * @param i2c object
-     * @param address: I2C slave address 
-     */
-    MAX44009(I2C& i2c, int address = MAX44009_I2C_ADDRESS); 
-   
-    int getStatus(void);
-    
-    bool readLuxIntensity(void);
-    
-    
-    inline float getLuxIntensity(void){
-        return this->mLuxIntensity;
-        }
-    
- private:
-    
-    I2C mI2c;   
-    int mI2cAddr;
-    float mLuxIntensity;
- 
-    /** Write data to the given register
-     *  
-     * @returns
-     *   1 on success,
-     *   0 on error
-     */  
-
-    bool write(uint8_t regAddress, uint8_t* data,int dataLength);
-    
-    
-    /** Write data to the given register
-     * @param register Address
-     * @param data to read
-     * @param length of data to read 
-     * @returns
-     *   1 on success,
-     *   0 on error
-     */
-    bool read(uint8_t regAddress, uint8_t *data,int dataLength);  
+/**
+ * @brief Read ambient light luminance.
+ *
+ * @param dev  max44009 device object
+ * @param lux  Ambient light luminance in lux [lx]
+ * @return True on success, false otherwise
+ */
+bool max44009_get_lux(const max44009* const dev, float* lux);
 
 
-    
-    
+//-----------------------------------------------------------------------------
+// @brief HW dependent functions - must be defined for each platform
+//-----------------------------------------------------------------------------
 
-};
+/**
+ * @brief Write bytes into max44009 device
+ *
+ * @param       dev      max44009 device object
+ * @param       reg_addr Register address.
+ * @param       buf      Data to be written
+ * @param       buf_size Number of bytes to be written.
+ * @return True on success, false otherwise
+ */
+extern bool max44009_write(const max44009* const dev, uint8_t reg_addr,
+                           const uint8_t* buf, size_t buf_size);
+
+/**
+ * @brief Read bytes from max44009 device
+ *
+ * @param       dev      max44009 device object
+ * @param       reg_addr Register address.
+ * @param[in]   buf      Buffer to fill with read bytes.
+ * @param       buf_size Number of bytes to read (32 bytes max).
+ * @retval Status value
+ */
+extern bool max44009_read(const max44009* const dev, uint8_t reg_addr,
+                          uint8_t* buf, size_t buf_size);
 
 
-#endif 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MAX44009_H__ */
+
