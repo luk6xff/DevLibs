@@ -219,10 +219,10 @@ typedef struct
 /**
  * @brief Init function
  *
- * @param[in] I2C bus module addr;
+ * @param[in] dev - ds3231 device object
  *
  */
-void ds3231_init(ds3231* const dev);
+void ds3231_init(ds3231 *const dev);
 
 
 /**
@@ -234,7 +234,7 @@ void ds3231_init(ds3231* const dev);
  *
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_set_time(ds3231* const dev, ds3231_time_t time);
+bool ds3231_set_time(ds3231 *const dev, ds3231_time_t time);
 
 
 /**
@@ -244,7 +244,7 @@ uint16_t ds3231_set_time(ds3231* const dev, ds3231_time_t time);
  *
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_set_calendar(ds3231* const dev, ds3231_calendar_t calendar);
+bool ds3231_set_calendar(ds3231 *const dev, ds3231_calendar_t calendar);
 
 
 /**
@@ -256,7 +256,7 @@ uint16_t ds3231_set_calendar(ds3231* const dev, ds3231_calendar_t calendar);
  *
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_set_alarm(ds3231* const dev, ds3231_alrm_t alarm, bool one_r_two);
+bool ds3231_set_alarm(ds3231 *const dev, ds3231_alrm_t alarm, bool one_r_two);
 
 
 /**
@@ -267,7 +267,7 @@ uint16_t ds3231_set_alarm(ds3231* const dev, ds3231_alrm_t alarm, bool one_r_two
  * @return return value = 0 on success, non-0 on failure
  *
 */
-uint16_t ds3231_set_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t data);
+bool ds3231_set_cntl_stat_reg(ds3231 *const dev, ds3231_cntl_stat_t data);
 
 
 /**
@@ -278,7 +278,7 @@ uint16_t ds3231_set_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t data);
  *                    data
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_get_time(ds3231* const dev, ds3231_time_t* time);
+bool ds3231_get_time(ds3231 *const dev, ds3231_time_t* time);
 
 
 /**
@@ -290,7 +290,7 @@ uint16_t ds3231_get_time(ds3231* const dev, ds3231_time_t* time);
  *                        calendar data
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_get_calendar(ds3231* const dev, ds3231_calendar_t* calendar);
+bool ds3231_get_calendar(ds3231 *const dev, ds3231_calendar_t* calendar);
 
 
 /**
@@ -303,7 +303,7 @@ uint16_t ds3231_get_calendar(ds3231* const dev, ds3231_calendar_t* calendar);
  * @param[out] alarm - contains integer alarm data
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_get_alarm(ds3231* const dev, ds3231_alrm_t* alarm, bool one_r_two);
+bool ds3231_get_alarm(ds3231 *const dev, ds3231_alrm_t* alarm, bool one_r_two);
 
 
 /**
@@ -315,7 +315,7 @@ uint16_t ds3231_get_alarm(ds3231* const dev, ds3231_alrm_t* alarm, bool one_r_tw
  *                    data
  * @return return value = 0 on success, non-0 on failure
  */
-uint16_t ds3231_get_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t* data);
+bool ds3231_get_cntl_stat_reg(ds3231 *const dev, ds3231_cntl_stat_t *data);
 
 
 /**
@@ -323,7 +323,7 @@ uint16_t ds3231_get_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t* data);
  *
  * @return return value = raw temperature data
  */
-uint16_t ds3231_get_temperature(ds3231* const dev);
+uint16_t ds3231_get_temperature(ds3231 *const dev);
 
 
 /**
@@ -333,29 +333,29 @@ uint16_t ds3231_get_temperature(ds3231* const dev);
  *
  * @return return value = epoch time
  */
-time_t ds3231_get_epoch(ds3231* const dev);
+time_t ds3231_get_epoch(ds3231 *const dev);
 
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // @brief HW DEPENDENT FUNCTIONS - must be implemented for each platform/
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 /**
  * @brief Write data via I2C to DS3231 registers
  *
  * @param[in] buf - pointer to buffer which will be send to device
  * @param[in] buf_size - number of bytes to be written
- * @return return value = 0 on success, non-0 on failure
+ * @return return value = true on success, false on failure
  */
-extern bool ds3231_write(ds3231* const dev, const uint8_t* buf, const size_t buf_size);
+extern bool ds3231_write(ds3231 *const dev, const uint8_t *buf, const size_t buf_size);
 
 /**
  * @brief Read data via I2C from DS3231 registers
  *
  * @param[out] buf - pointer to buffer which will be filled with read data from the device
  * @param[in] buf_size - number of bytes to be read
- * @return return value = 0 on success, non-0 on failure
+ * @return return value = true on success, false on failure
  */
-extern bool ds3231_read(ds3231* const dev, uint8_t* buf, const size_t buf_size);
+extern bool ds3231_read(ds3231 *const dev, uint8_t *buf, const size_t buf_size);
 
 
 #ifdef __cplusplus

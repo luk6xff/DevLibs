@@ -20,7 +20,7 @@ typedef struct
     I2C* i2c;
 } ds3231_mbed;
 
-void ds3231_mbed_init(ds3231* const dev, ds3231_mbed* const mbed_dev);
+void ds3231_mbed_init(ds3231 *const dev, ds3231_mbed *const mbed_dev);
 
 void ds3231_mbed_deinit();
 

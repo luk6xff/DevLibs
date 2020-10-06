@@ -20,8 +20,8 @@ typedef struct
     TwoWire* i2c;
 } ds3231_arduino;
 
-void ds3231_arduino_init(ds3231* const dev, ds3231_arduino* const arduino_dev);
+void ds3231_arduino_init(ds3231 *const dev, ds3231_arduino *const arduino_dev);
 
-void ds3231_arduino_deinit(ds3231* const dev);
+void ds3231_arduino_deinit(ds3231 *const dev);
 
 #endif // __DS3231_ARDUINO_H__

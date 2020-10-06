@@ -31,12 +31,12 @@ int main(void)
     ds3231_time_t     time;
     ds3231_calendar_t cal;
 
-    if (ds3231_get_time(&time) != 0)
+    if (!ds3231_get_time(&time))
     {
         return -1;
     }
 
-    if (ds3231_get_calendar(&cal) != 0)
+    if (!ds3231_get_calendar(&cal))
     {
         return -1;
     }

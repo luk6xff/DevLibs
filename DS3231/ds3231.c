@@ -21,7 +21,7 @@ static uint16_t uchar_2_bcd(uint8_t data);
  *
  * @param[in] bcd - 0-99
  *
- * @return rtn_val = integer rep. of BCD
+ * @return ret = integer rep. of BCD
  */
 static uint8_t bcd_2_uchar(uint8_t bcd);
 
@@ -30,14 +30,14 @@ static uint8_t bcd_2_uchar(uint8_t bcd);
 // @brief FUNCTIONS DEFINITIONS
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-void ds3231_init(ds3231* const dev)
+void ds3231_init(ds3231 *const dev)
 {
     dev->w_addr = ((dev->i2c_addr << 1) | I2C_WRITE);
     dev->r_addr = ((dev->i2c_addr << 1) | I2C_READ);
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_set_time(ds3231* const dev, ds3231_time_t time)
+bool ds3231_set_time(ds3231 *const dev, ds3231_time_t time)
 {
     uint8_t data[] = {0,0,0,0};
     uint8_t data_length = 0;
@@ -69,7 +69,7 @@ uint16_t ds3231_set_time(ds3231* const dev, ds3231_time_t time)
     //Make sure data is within range.
     if ((time.seconds > 59) || (time.minutes > 59) || (time.hours > max_hour))
     {
-        return (1);
+        return (false);
     }
     else
     {
@@ -78,7 +78,7 @@ uint16_t ds3231_set_time(ds3231* const dev, ds3231_time_t time)
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_set_calendar(ds3231* const dev, ds3231_calendar_t calendar)
+bool ds3231_set_calendar(ds3231 *const dev, ds3231_calendar_t calendar)
 {
     uint8_t data[] = {0,0,0,0,0};
     uint8_t data_length = 0;
@@ -96,16 +96,16 @@ uint16_t ds3231_set_calendar(ds3231* const dev, ds3231_calendar_t calendar)
        ((calendar.month < 1) || (calendar.month > 12)) ||
        (calendar.year > 99))
     {
-        return(1);
+        return (false);
     }
     else
     {
-        return(ds3231_write(dev, data, data_length));
+        return (ds3231_write(dev, data, data_length));
     }
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_set_alarm(ds3231* const dev, ds3231_alrm_t alarm, bool one_r_two)
+bool ds3231_set_alarm(ds3231 *const dev, ds3231_alrm_t alarm, bool one_r_two)
 {
     uint8_t data[] = {0,0,0,0,0};
     uint8_t data_length = 0;
@@ -225,16 +225,16 @@ uint16_t ds3231_set_alarm(ds3231* const dev, ds3231_alrm_t alarm, bool one_r_two
        ((alarm.day < 1) || (alarm.day > 7)) ||
        ((alarm.date < 1) || (alarm.date > 31)))
     {
-        return(1);
+        return (false);
     }
     else
     {
-        return(ds3231_write(dev, data, data_length));
+        return (ds3231_write(dev, data, data_length));
     }
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_set_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t data)
+bool ds3231_set_cntl_stat_reg(ds3231 *const dev, ds3231_cntl_stat_t data)
 {
     uint8_t local_data[] = {0,0,0};
     uint8_t data_length = 0;
@@ -244,21 +244,21 @@ uint16_t ds3231_set_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t data)
     local_data[data_length++] = data.status;
 
     //users responsibility to make sure data is logical
-    return(ds3231_write(dev, local_data, data_length));
+    return (ds3231_write(dev, local_data, data_length));
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_get_time(ds3231* const dev, ds3231_time_t* time)
+bool ds3231_get_time(ds3231 *const dev, ds3231_time_t* time)
 {
-    uint16_t rtn_val = 1;
+    bool ret = true;
     uint8_t data[3];
 
     data[0] = SECONDS;
-    rtn_val = ds3231_write(dev, data, 1);
+    ret = ds3231_write(dev, data, 1);
 
-    if (!rtn_val)
+    if (ret)
     {
-        rtn_val = ds3231_read(dev, data, 3);
+        ret = ds3231_read(dev, data, 3);
 
         time->seconds = bcd_2_uchar(data[0]);
         time->minutes = bcd_2_uchar(data[1]);
@@ -275,21 +275,21 @@ uint16_t ds3231_get_time(ds3231* const dev, ds3231_time_t* time)
         }
     }
 
-    return(rtn_val);
+    return (ret);
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_get_calendar(ds3231* const dev, ds3231_calendar_t* calendar)
+bool ds3231_get_calendar(ds3231 *const dev, ds3231_calendar_t* calendar)
 {
-    uint16_t rtn_val = 1;
+    bool ret = true;
     uint8_t data[4];
 
     data[0] = DAY;
-    rtn_val = ds3231_write(dev, data, 1);
+    ret = ds3231_write(dev, data, 1);
 
-    if (!rtn_val)
+    if (ret)
     {
-        rtn_val = ds3231_read(dev, data, 4);
+        ret = ds3231_read(dev, data, 4);
 
         calendar->day = bcd_2_uchar(data[0]);
         calendar->date = bcd_2_uchar(data[1]);
@@ -314,23 +314,23 @@ uint16_t ds3231_get_calendar(ds3231* const dev, ds3231_calendar_t* calendar)
         calendar->day = day_of_week;
     }
 
-    return(rtn_val);
+    return (ret);
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_get_alarm(ds3231* const dev, ds3231_alrm_t* alarm, bool one_r_two)
+bool ds3231_get_alarm(ds3231 *const dev, ds3231_alrm_t* alarm, bool one_r_two)
 {
-    uint16_t rtn_val = 1;
+    bool ret = true;
     uint8_t data[4];
 
     if (one_r_two)
     {
         data[0] = ALRM1_SECONDS;
-        rtn_val = ds3231_write(dev, data, 1);
+        ret = ds3231_write(dev, data, 1);
 
-        if (!rtn_val)
+        if (ret)
         {
-            rtn_val = ds3231_read(dev, data, 4);
+            ret = ds3231_read(dev, data, 4);
 
             alarm->seconds = bcd_2_uchar(data[0]&0x7F);
             alarm->am1 = (data[0]&ALRM_MASK);
@@ -364,11 +364,11 @@ uint16_t ds3231_get_alarm(ds3231* const dev, ds3231_alrm_t* alarm, bool one_r_tw
     else
     {
         data[0] = ALRM2_MINUTES;
-        rtn_val = ds3231_write(dev, data, 1);
+        ret = ds3231_write(dev, data, 1);
 
-        if (!rtn_val)
+        if (ret)
         {
-            rtn_val = ds3231_read(dev, data, 4);
+            ret = ds3231_read(dev, data, 4);
 
             alarm->minutes = bcd_2_uchar(data[0]&0x7F);
             alarm->am2 = (data[0]&ALRM_MASK);
@@ -398,51 +398,50 @@ uint16_t ds3231_get_alarm(ds3231* const dev, ds3231_alrm_t* alarm, bool one_r_tw
         }
     }
 
-    return(rtn_val);
+    return (ret);
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_get_cntl_stat_reg(ds3231* const dev, ds3231_cntl_stat_t* data)
+bool ds3231_get_cntl_stat_reg(ds3231 *const dev, ds3231_cntl_stat_t *data)
 {
-    uint16_t rtn_val = 1;
+    bool ret = true;
     uint8_t local_data[2];
 
     local_data[0] = CONTROL;
-    rtn_val = ds3231_write(dev, local_data, 1);
+    ret = ds3231_write(dev, local_data, 1);
 
-    if (!rtn_val)
+    if (ret)
     {
-        rtn_val = ds3231_read(dev, local_data, 2);
+        ret = ds3231_read(dev, local_data, 2);
 
         data->control = local_data[0];
         data->status = local_data[1];
     }
 
-    return(rtn_val);
+    return (ret);
 }
 
 //------------------------------------------------------------------------------
-uint16_t ds3231_get_temperature(ds3231* const dev)
+uint16_t ds3231_get_temperature(ds3231 *const dev)
 {
-    uint16_t rtn_val = 1;
+    uint16_t ret = true;
     uint8_t data[2];
 
     data[0] = MSB_TEMP;
-    rtn_val = ds3231_write(dev, data, 1);
+    ret = ds3231_write(dev, data, 1);
 
-    if (!rtn_val)
+    if (ret)
     {
         ds3231_read(dev, data, 2);
-
-        rtn_val = data[0] << 8;
-        rtn_val |= data[1];
+        ret = data[0] << 8;
+        ret |= data[1];
     }
 
-    return (rtn_val);
+    return (ret);
 }
 
 //------------------------------------------------------------------------------
-time_t ds3231_get_epoch(ds3231* const dev)
+time_t ds3231_get_epoch(ds3231 *const dev)
 {
     //system vars
     struct tm sys_time;
@@ -502,18 +501,18 @@ static uint16_t uchar_2_bcd(uint8_t data)
    //Get ones
    bcd_result |= data;
 
-   return(bcd_result);
+   return (bcd_result);
 }
 
 //------------------------------------------------------------------------------
 static uint8_t bcd_2_uchar(uint8_t bcd)
 {
-    uint8_t rtn_val = 0;
+    uint8_t ret = 0;
 
-    rtn_val += ((bcd&0xf0)>>4)*10;
-    rtn_val += (bcd&0x000f);
+    ret += ((bcd&0xf0)>>4)*10;
+    ret += (bcd&0x000f);
 
-    return rtn_val;
+    return ret;
 }
 
 //------------------------------------------------------------------------------

@@ -9,7 +9,7 @@
 #include "ds3231-mbed.h"
 
 //------------------------------------------------------------------------------
-void ds3231_mbed_init(ds3231* const dev, ds3231_mbed* const mbed_dev)
+void ds3231_mbed_init(ds3231 *const dev, ds3231_mbed *const mbed_dev)
 {
     dev->platform_dev = mbed_dev;
     dev->platform_dev->i2c->frequency(400000);
@@ -23,17 +23,17 @@ void ds3231_mbed_deinit(void)
 }
 
 //-----------------------------------------------------------------------------
-bool ds3231_write(ds3231* const dev, const uint8_t* buf, const size_t buf_size)
+bool ds3231_write(ds3231 *const dev, const uint8_t *buf, const size_t buf_size)
 {
-    ds3231_mbed* const pd = (ds3231_mbed*)dev->platform_dev;
-    return pd->i2c->write((int)dev->w_addr, (char*)buf, buf_size);
+    ds3231_mbed *const pd = (ds3231_mbed*)dev->platform_dev;
+    return pd->i2c->write((int)dev->w_addr, (char*)buf, buf_size) == 0;
 }
 
 //-----------------------------------------------------------------------------
-bool ds3231_read(ds3231* const dev, uint8_t* buf, const size_t buf_size)
+bool ds3231_read(ds3231 *const dev, uint8_t *buf, const size_t buf_size)
 {
-    ds3231_mbed* const pd = (ds3231_mbed*)dev->platform_dev;
-    return pd->i2c->read(dev->r_addr, (char*)buf, buf_size);
+    ds3231_mbed *const pd = (ds3231_mbed*)dev->platform_dev;
+    return pd->i2c->read(dev->r_addr, (char*)buf, buf_size) == 0;
 }
 //-----------------------------------------------------------------------------
 
