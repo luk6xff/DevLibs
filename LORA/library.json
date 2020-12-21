@@ -1,0 +1,30 @@
+{
+    "name": "LORA",
+    "description": "LoRa library for SEMTECH SX127x devices",
+    "platforms": "*",
+    "frameworks": [
+        "arduino"
+    ],
+    "keywords": [
+        "LORA",
+        "LoRa",
+        "SX1276",
+        "SX1277",
+        "SX1278",
+        "SX1279",
+        "RA-01",
+        "RA-02"
+    ],
+    "version": "0.0.1",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/LORA"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/LORA"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

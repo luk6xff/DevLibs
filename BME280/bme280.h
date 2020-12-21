@@ -67,8 +67,8 @@ typedef enum
     BME280_REGISTER_CAL26 = 0xE1, // R calibration stored in 0xE1-0xF0
 
     BME280_REGISTER_CTRL_HUM = 0xF2,
-    BME280_REGISTER_STATUS = 0XF3,
-	BME280_REGISTER_CTRL_MEAS = 0xF4,
+    BME280_REGISTER_STATUS = 0xF3,
+    BME280_REGISTER_CTRL_MEAS = 0xF4,
     BME280_REGISTER_CONFIG = 0xF5,
     BME280_REGISTER_PRESSUREDATA = 0xF7,
     BME280_REGISTER_TEMPDATA = 0xFA,
@@ -193,7 +193,7 @@ typedef union
 {
     struct
     {
-        bme280_sensor_sampling osrs_h : 3; ///< pressure oversampling
+        bme280_sensor_sampling osrs_h : 3; ///< humidity oversampling
         uint8_t none : 5;                  ///< unused - don't set
     };
     uint8_t reg;
@@ -209,8 +209,9 @@ typedef struct
     bme280_intf_type intf; ///< Interface type
     uint8_t i2c_addr;      ///< I2C device address
     bme280_calibration calib;
-    float t_fine;
+    int32_t t_fine;
     int32_t t_fine_adjust; ///< Add to compensate temp readings and in turn to pressure and humidity readings
+    bool burst_read_mode; ///< When set to true, read_pressure and read_humidity don't read temperature to get t_fine. You have to set it before by read_temperature.
     void* platform_dev;
 } bme280;
 
@@ -226,7 +227,7 @@ bool bme280_init(bme280 *const dev);
  * @param[in] dev - bme280 device object
  * @param altitude (in meter)
  * @param oss
- * @return 0 if no errors, 1 on error
+ * @return true if no errors, false on error
  */
 bool bme280_set_configuration(bme280 *const dev);
 
@@ -235,9 +236,15 @@ bool bme280_set_configuration(bme280 *const dev);
  *
  * @details Performs a soft reset of the device. Same sequence as power on reset.
  * @param[in] dev - bme280 device object
- * @return 0 if no errors, 1 on error
+ * @return true if no errors, false on error
  */
 bool bme280_reset(bme280 *const dev);
+
+/**
+ * @brief Set BME280 mode
+ * @return true if no errors, false on error
+ */
+bool bme280_set_mode(bme280 *const dev, bme280_sensor_mode mode);
 
 /**
  * @brief Returns sensor ID.
@@ -246,6 +253,11 @@ bool bme280_reset(bme280 *const dev);
  * @return Sensor ID 0x60 for BME280, 0x56, 0x57, 0x58 BMP280
  */
 uint8_t bme280_sensor_id(bme280 *const dev);
+
+/**
+ * Check the measuring bit and return true while device is taking measurement
+ */
+bool bme280_is_measuring(bme280 *const dev);
 
 /**
  * @brief Read pressure and temperature from the BME280.
