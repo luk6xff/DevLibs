@@ -13,7 +13,7 @@ Simple snippet how to quickly use the library for LORA communication on mbed pla
 
 
 ## Porting to other platform
-If you want to port this library on other platform, the only thing you have to do is define HW/Platform dependent functions as it is done in `platform/lora-mbed.cpp` file.
+If you want to port this library on other platform, the only thing you have to do is define HW/Platform dependent functions as it is done in `platform/mbed/lora-mbed.cpp` file.
 
 
 ## Author
