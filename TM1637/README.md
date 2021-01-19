@@ -1,4 +1,4 @@
-# TM1637 RTC module library
+# TM1637 LED controller module library
 
 ## Description
 TM1637 LED controller platform independent library
