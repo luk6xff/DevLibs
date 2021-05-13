@@ -48,13 +48,13 @@ typedef struct
 
 void radio_send(radio_msg_sensor_frame *msgf)
 {
-	static uint8_t msg_cnt = 0;
-	if (!msgf)
-	{
-		return;
-	}
+    static uint8_t msg_cnt = 0;
+    if (!msgf)
+    {
+        return;
+    }
 
-	// Send result data
+    // Send result data
     radio_layer_msg_header hdr;
     hdr.receiver_id = LORA_RADIO_RECEIVER_ID;
     hdr.sender_id = LORA_RADIO_SENDER_ID;
