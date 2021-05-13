@@ -1,4 +1,4 @@
-# LORA LORA module library
+# LORA (for SX127x modules) library
 
 
 ## Description

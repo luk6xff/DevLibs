@@ -1,3 +1,5 @@
+# This code is deprecated! Use my new [LORA library](https://github.com/luk6xff/DevLibs/tree/master/LORA) instead.
+
 # SX1278 LORA module library
 
 
