@@ -1,0 +1,28 @@
+{
+    "name": "BME280",
+    "description": "BME280 digital pressure, temperature and humidity sensor library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "cube"
+    ],
+    "keywords": [
+        "BME280",
+        "temperature",
+        "pressure",
+        "humidity"
+    ],
+    "version": "1.0.0",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BME280"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BME280"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}
