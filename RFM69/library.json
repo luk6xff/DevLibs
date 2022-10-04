@@ -1,0 +1,27 @@
+{
+    "name": "RFM69",
+    "description": "RFM69 radio module library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino"
+    ],
+    "keywords": [
+        "RFM69",
+        "RFM69HCW",
+        "SX1231"
+    ],
+    "version": "0.0.1",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/RFM69"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/RFM69"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+
+}
