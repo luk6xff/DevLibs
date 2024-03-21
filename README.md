@@ -1,4 +1,4 @@
 # DevLibs
-This repo contains libraries for electronic modules -  created for different platforms and devices; written mostly in C or C++, what allows to easily port them to different platform
+This repository contains libraries for various electronic modules, created by me for different platforms and devices. They are primarily written in C or C++, which allows for easy porting to various platforms.
 
 
