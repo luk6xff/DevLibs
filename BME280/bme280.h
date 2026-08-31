@@ -109,12 +109,12 @@ typedef struct
  */
 typedef enum
 {
-    SAMPLING_NONE = 0b000,
-    SAMPLING_X1   = 0b001,
-    SAMPLING_X2   = 0b010,
-    SAMPLING_X4   = 0b011,
-    SAMPLING_X8   = 0b100,
-    SAMPLING_X16  = 0b101
+    SAMPLING_NONE = 0x00,
+    SAMPLING_X1   = 0x01,
+    SAMPLING_X2   = 0x02,
+    SAMPLING_X4   = 0x03,
+    SAMPLING_X8   = 0x04,
+    SAMPLING_X16  = 0x05
 } bme280_sensor_sampling;
 
 /**
@@ -122,9 +122,9 @@ typedef enum
  */
 typedef enum
 {
-    MODE_SLEEP  = 0b00,
-    MODE_FORCED = 0b01,
-    MODE_NORMAL = 0b11
+    MODE_SLEEP  = 0x00,
+    MODE_FORCED = 0x01,
+    MODE_NORMAL = 0x03
 } bme280_sensor_mode;
 
 /**
@@ -132,11 +132,11 @@ typedef enum
  */
 typedef enum
 {
-    FILTER_OFF = 0b000,
-    FILTER_X2  = 0b001,
-    FILTER_X4  = 0b010,
-    FILTER_X8  = 0b011,
-    FILTER_X16 = 0b100
+    FILTER_OFF = 0x00,
+    FILTER_X2  = 0x01,
+    FILTER_X4  = 0x02,
+    FILTER_X8  = 0x03,
+    FILTER_X16 = 0x04
 } bme280_sensor_filter;
 
 /**
@@ -144,19 +144,22 @@ typedef enum
  */
 typedef enum
 {
-    STANDBY_MS_0_5  = 0b000,
-    STANDBY_MS_10   = 0b110,
-    STANDBY_MS_20   = 0b111,
-    STANDBY_MS_62_5 = 0b001,
-    STANDBY_MS_125  = 0b010,
-    STANDBY_MS_250  = 0b011,
-    STANDBY_MS_500  = 0b100,
-    STANDBY_MS_1000 = 0b101
+    STANDBY_MS_0_5  = 0x00,
+    STANDBY_MS_10   = 0x06,
+    STANDBY_MS_20   = 0x07,
+    STANDBY_MS_62_5 = 0x01,
+    STANDBY_MS_125  = 0x02,
+    STANDBY_MS_250  = 0x03,
+    STANDBY_MS_500  = 0x04,
+    STANDBY_MS_1000 = 0x05
 } bme280_standby_duration;
 
 
 /**
  * @brief BME280_REGISTER_CONFIG [0xF5] structure.
+ *
+ * @note The bit-field layout assumes an LSB-first compiler, which is the case
+ *       for GCC/Clang on all supported targets.
  */
 typedef union
 {
@@ -166,7 +169,7 @@ typedef union
         uint8_t none : 1;     ///< unused - don't set
         bme280_sensor_filter filter : 3; ///< filter settings
         bme280_standby_duration t_sb : 3; ///< inactive duration (standby time) in normal mode
-    };
+    } bits;
     uint8_t reg;
 
 } config_reg;
@@ -181,7 +184,7 @@ typedef union
         bme280_sensor_mode mode : 2; ///< device mode
         bme280_sensor_sampling osrs_p : 3; ///< pressure oversampling
         bme280_sensor_sampling osrs_t : 3; ///< temperature oversampling
-    };
+    } bits;
     uint8_t reg;
 
 } ctrl_meas_reg;
@@ -195,7 +198,7 @@ typedef union
     {
         bme280_sensor_sampling osrs_h : 3; ///< humidity oversampling
         uint8_t none : 5;                  ///< unused - don't set
-    };
+    } bits;
     uint8_t reg;
 
 } ctrl_hum_reg;

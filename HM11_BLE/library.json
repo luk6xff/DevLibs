@@ -1,0 +1,29 @@
+{
+    "name": "HM11_BLE",
+    "description": "HM-11 Bluetooth Low Energy 4.0 module library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "HM-11",
+        "HM11",
+        "Bluetooth",
+        "BLE"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/HM11_BLE"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/HM11_BLE"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

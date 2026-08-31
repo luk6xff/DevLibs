@@ -107,7 +107,7 @@ typedef enum
  */
 typedef struct
 {
-    uint8_t  node_id;       // rfm node address
+    uint16_t node_id;       // rfm node address (10-bit)
     uint8_t  network_id;    // rfm network address
     uint8_t  freq_band;
     int8_t   power_level_dbm;
@@ -213,7 +213,7 @@ void rfm69_sleep(rfm69 *const dev);
  * @param[in] addr - device node addr
  * @note Unused in packet mode
  */
-void rfm69_set_address(rfm69 *const dev, uint8_t addr);
+void rfm69_set_address(rfm69 *const dev, uint16_t addr);
 
 /**
  * @brief Set this node's network id

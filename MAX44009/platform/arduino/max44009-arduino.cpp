@@ -8,47 +8,82 @@
 
 #include "max44009-arduino.h"
 
-//-------------------------------------------------------------------------------
-bool max44009_arduino_init(max44009* const dev, max44009_arduino* const arduino_dev)
+#define MAX44009_I2C_TIMEOUT_MS 1000
+
+//-----------------------------------------------------------------------------
+bool max44009_arduino_init(max44009* const dev,
+                           max44009_arduino* const arduino_dev)
 {
+    if (!dev || !arduino_dev || !arduino_dev->i2c)
+    {
+        return false;
+    }
+
     arduino_dev->i2c->begin();
-    arduino_dev->i2c->setClock(400000);
+    if (arduino_dev->i2c_freq != 0)
+    {
+        arduino_dev->i2c->setClock(arduino_dev->i2c_freq);
+    }
     dev->platform_dev = arduino_dev;
     return max44009_init(dev);
 }
-//------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 bool max44009_write(const max44009* const dev, uint8_t reg_addr,
                     const uint8_t* buf, size_t buf_size)
 {
     max44009_arduino* const pd = (max44009_arduino*)dev->platform_dev;
+
     pd->i2c->beginTransmission(dev->i2c_addr);
-    pd->i2c->write(reg_addr);
-    for (uint8_t i = 0; i < buf_size; i++)
+    if (pd->i2c->write(reg_addr) != 1)
     {
-        pd->i2c->write((uint8_t) buf[i]);
+        pd->i2c->endTransmission();
+        return false;
     }
-    return pd->i2c->endTransmission() == 0; // true on success
+    if (buf_size != 0 && pd->i2c->write(buf, buf_size) != buf_size)
+    {
+        pd->i2c->endTransmission();
+        return false;
+    }
+    return pd->i2c->endTransmission() == 0;
 }
 
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 bool max44009_read(const max44009* const dev, uint8_t reg_addr,
                    uint8_t* buf, size_t buf_size)
 {
-    const size_t timeout_ms = 1000; // 1 second timeout
-    size_t recv_data_cntr = 0;
     max44009_arduino* const pd = (max44009_arduino*)dev->platform_dev;
 
+    // Address the register, keep the bus so a repeated START is issued
     pd->i2c->beginTransmission(dev->i2c_addr);
-    // Start transmission by write to a given register
     pd->i2c->write(reg_addr);
-    // Read data
-    pd->i2c->requestFrom(dev->i2c_addr, buf_size);
-    const size_t t1 = millis();
-    for (; pd->i2c->available() && (timeout_ms == 0 || (millis() - t1) < timeout_ms); recv_data_cntr++)
+    if (pd->i2c->endTransmission(false) != 0)
     {
-        buf[recv_data_cntr] = pd->i2c->read();
+        return false;
     }
-    return pd->i2c->endTransmission() == 0 && recv_data_cntr == buf_size;
+
+    if (pd->i2c->requestFrom(dev->i2c_addr, (uint8_t)buf_size) != buf_size)
+    {
+        return false;
+    }
+
+    size_t received = 0;
+    const uint32_t t1 = millis();
+    while (received < buf_size && (millis() - t1) < MAX44009_I2C_TIMEOUT_MS)
+    {
+        if (pd->i2c->available())
+        {
+            buf[received++] = (uint8_t)pd->i2c->read();
+        }
+    }
+    return received == buf_size;
 }
 
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+void max44009_delay_ms(uint32_t delay_ms)
+{
+    delay(delay_ms);
+}
+
+//-----------------------------------------------------------------------------
+

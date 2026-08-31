@@ -1,113 +1,368 @@
-/*
- * ds1621.c  
- *
- *  Created on: 04-12-2012
- *      Author: £ukasz Uszko z wyk. funkcji do obrobki danych getTemperature od Dharmaniego.
+/**
+ *  @brief:   DS1621 digital thermometer and thermostat library
+ *  @author:  luk6xff
+ *  @email:   lukasz.uszko@gmail.com
+ *  @date:    2020-09-02
+ *  @license: MIT
  */
-#include <avr/io.h>
-#include <avr/interrupt.h>
+
 #include "ds1621.h"
-#include "i2c_twi.h"
-#include "lcd44780.h"
-#include <util/delay.h>
 
-unsigned char tempDisplay[] = "+xx.x"; // format wysw temperatury
-//******************************************************************
-//Function inicjuj¹ca czujniki
-//******************************************************************
-bool ds1621_init(uint8_t addr) {
-	bool ErrorStatus;
-	I2C_init(100000);
-	ErrorStatus = I2C_write_data(addr, ACCESS_CFG, 1, 0x03); //commmand to set o/ppolarity high, single shot conversion
-	return ErrorStatus;
+// Typical EEPROM write cycle time, the datasheet guarantees 10 ms
+#define DS1621_EEPROM_WRITE_TIME_MS 10
+
+// Number of NVB polls performed before an EEPROM write is declared failed
+#define DS1621_EEPROM_POLL_RETRIES  10
+
+// Granularity of the conversion completion polling
+#define DS1621_POLL_STEP_MS         50
+
+//-----------------------------------------------------------------------------
+/**
+ * @brief Decode the 9-bit two's complement temperature format.
+ *
+ * The MSB carries whole degrees, bit 7 of the LSB carries the 0.5 degC step,
+ * which makes the raw 16-bit word a plain fixed point value with 8 fractional
+ * bits.
+ */
+static float ds1621_decode_temp(const uint8_t* const raw)
+{
+    const int16_t counts =
+        (int16_t)(((uint16_t)raw[0] << 8) | (uint16_t)raw[1]);
+    return (float)counts / 256.0f;
 }
 
-//******************************************************************
-//funkcja do zapisywania komendy do czujnika
-//******************************************************************
-bool ds1621_sendCommand(uint8_t command, uint8_t addr) {
-	bool ErrorStatus;
-	ErrorStatus = I2C_write_data(addr, command, 1, 0x01);
-	return ErrorStatus;
+//-----------------------------------------------------------------------------
+static void ds1621_encode_temp(float temp, uint8_t* const raw)
+{
+    if (temp > DS1621_TEMPERATURE_MAX)
+    {
+        temp = DS1621_TEMPERATURE_MAX;
+    }
+    else if (temp < DS1621_TEMPERATURE_MIN)
+    {
+        temp = DS1621_TEMPERATURE_MIN;
+    }
 
+    // Round to the nearest representable 0.5 degC step
+    const float scaled = temp * 2.0f;
+    const int32_t half_degrees =
+        (int32_t)((scaled >= 0.0f) ? (scaled + 0.5f) : (scaled - 0.5f));
+    const uint16_t counts = (uint16_t)((uint32_t)(half_degrees * 128) & 0xFFFFu);
+
+    raw[0] = (uint8_t)(counts >> 8);
+    raw[1] = (uint8_t)(counts & 0x00FFu);
 }
 
-//******************************************************************
-//funkcja do czytania z czujnika
-//******************************************************************
+//-----------------------------------------------------------------------------
+static bool ds1621_wait_for_eeprom(const ds1621* const dev)
+{
+    for (uint8_t retry = 0; retry < DS1621_EEPROM_POLL_RETRIES; ++retry)
+    {
+        ds1621_delay_ms(DS1621_EEPROM_WRITE_TIME_MS);
 
-uint8_t ds1621_readValue(uint8_t value, uint8_t addr) {
-	uint8_t data;
-	data = I2C_read_data(addr, value, 1);
-	return (data);
+        uint8_t reg = 0;
+        if (!ds1621_read(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+        {
+            return false;
+        }
+        if ((reg & DS1621_STATUS_NVB) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
-//******************************************************************
-//funkcja do odczytu temperatury   // pozyczona od darmaniego
-//******************************************************************
-uint8_t* getTemperature(uint8_t addr) {
-	char temperature, counter, slope;
-	int temp;
-	float actualTemp;
+//-----------------------------------------------------------------------------
+static bool ds1621_write_trip_point(const ds1621* const dev, uint8_t cmd,
+                                    float temp)
+{
+    uint8_t raw[2] = {0};
+    ds1621_encode_temp(temp, raw);
 
-	if(ds1621_sendCommand(START_CNV, addr)){return (uint8_t*) READ_TEMP_ERROR;}
-
-	// _delay_ms(1000);
-
-	temperature = ds1621_readValue(RD_TEMP, addr);
-	counter = ds1621_readValue(RD_CNTR, addr);
-	slope = ds1621_readValue(RD_SLOPE, addr);
-
-	if (temperature == ERROR_CODE || counter == ERROR_CODE
-			|| slope == ERROR_CODE) {
-		return (uint8_t*) READ_TEMP_ERROR;
-	}
-
-	actualTemp = (float) temperature - 0.25
-			+ ((float) (slope - counter) / (float) slope);
-
-	temp = (int) (actualTemp * 10.0); //to include decimal point for display
-
-	if ((actualTemp * 10.0 - temp) >= 0.5)
-		temp = temp + 1;
-
-//    tempDisplay[8]=0xdf;			//Symbol of degree
-
-	if (temp < 0) {
-		tempDisplay[0] = '-';
-		temp *= -1;
-	} else {
-		tempDisplay[0] = '+';
-	}
-
-	tempDisplay[4] = ((uint8_t) (temp % 10)) | 0x30;
-	temp = temp / 10;
-
-	tempDisplay[2] = ((uint8_t) (temp % 10)) | 0x30;
-	temp = temp / 10;
-
-	tempDisplay[1] = ((uint8_t) (temp % 10)) | 0x30;
-	temp = temp / 10;
-
-	return tempDisplay;
-}
-//******************************************************************
-//init Timera0 i jego interrupta do wyzwalania cyklicznego pomiaru
-//******************************************************************
-void TIMER0_Conf(void) { // w przerwaniu od tego timera co jakiœ czas uruchamiam konwersje temperatury i z czytuje aktualn¹ temp, coby odci¹¿yæ CPU
-	TCCR0 |= (1 << WGM01 | 1 << CS00 | 1 << CS01 | 1 << CS02); // tryb CTC // prescaler 1024
-	OCR0 = 156; // 16MHz/ 1024/156  ~= 100Hz
-	TIMSK |= 1 << OCIE0;
-
+    if (!ds1621_write(dev, cmd, raw, sizeof(raw)))
+    {
+        return false;
+    }
+    return ds1621_wait_for_eeprom(dev);
 }
 
-ISR(TIMER0_COMP_vect) {
-	static uint8_t i; // tu se mozesz ustawic co jaki czas wykonywany pomiar// ja daje na razie co 1sekunde na kazdy Czujnik
-	i++;
-	if (i == 50) {
-		flag_czuj = 1;
-	} else if (i == 100) {
-		flag_czuj = 2;
-		i = 0;
-	}
+//-----------------------------------------------------------------------------
+bool ds1621_init(ds1621* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    dev->temperature = DS1621_INVALID_TEMPERATURE;
+
+    const ds1621_config cfg = {
+        .conversion_mode = DS1621_CONVERSION_ONE_SHOT,
+        .tout_polarity = DS1621_TOUT_ACTIVE_HIGH,
+    };
+
+    if (!ds1621_set_config(dev, &cfg))
+    {
+        return false;
+    }
+
+    // Make sure the device really answers with what has just been programmed
+    ds1621_config readback;
+    if (!ds1621_get_config(dev, &readback))
+    {
+        return false;
+    }
+    return readback.conversion_mode == cfg.conversion_mode &&
+           readback.tout_polarity == cfg.tout_polarity;
 }
+
+//-----------------------------------------------------------------------------
+bool ds1621_set_config(const ds1621* const dev, const ds1621_config* const cfg)
+{
+    if (!dev || !cfg)
+    {
+        return false;
+    }
+
+    uint8_t reg = 0;
+    if (cfg->tout_polarity == DS1621_TOUT_ACTIVE_HIGH)
+    {
+        reg |= DS1621_CFG_POL;
+    }
+    if (cfg->conversion_mode == DS1621_CONVERSION_ONE_SHOT)
+    {
+        reg |= DS1621_CFG_ONE_SHOT;
+    }
+
+    if (!ds1621_write(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+    {
+        return false;
+    }
+    return ds1621_wait_for_eeprom(dev);
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_get_config(const ds1621* const dev, ds1621_config* const cfg)
+{
+    if (!dev || !cfg)
+    {
+        return false;
+    }
+
+    uint8_t reg = 0;
+    if (!ds1621_read(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+    {
+        return false;
+    }
+
+    cfg->tout_polarity = ((reg & DS1621_CFG_POL) != 0) ?
+                         DS1621_TOUT_ACTIVE_HIGH : DS1621_TOUT_ACTIVE_LOW;
+    cfg->conversion_mode = ((reg & DS1621_CFG_ONE_SHOT) != 0) ?
+                           DS1621_CONVERSION_ONE_SHOT : DS1621_CONVERSION_CONTINUOUS;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_read_status(const ds1621* const dev, ds1621_status* const status)
+{
+    if (!dev || !status)
+    {
+        return false;
+    }
+
+    uint8_t reg = 0;
+    if (!ds1621_read(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+    {
+        return false;
+    }
+
+    status->conversion_done = (reg & DS1621_STATUS_DONE) != 0;
+    status->temp_high_flag = (reg & DS1621_STATUS_THF) != 0;
+    status->temp_low_flag = (reg & DS1621_STATUS_TLF) != 0;
+    status->eeprom_busy = (reg & DS1621_STATUS_NVB) != 0;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_clear_alarm_flags(const ds1621* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    uint8_t reg = 0;
+    if (!ds1621_read(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+    {
+        return false;
+    }
+
+    reg = (uint8_t)(reg & (uint8_t)~(DS1621_STATUS_THF | DS1621_STATUS_TLF));
+    if (!ds1621_write(dev, DS1621_CMD_ACCESS_CONFIG, &reg, 1))
+    {
+        return false;
+    }
+    return ds1621_wait_for_eeprom(dev);
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_start_conversion(const ds1621* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    return ds1621_write(dev, DS1621_CMD_START_CONVERT, NULL, 0);
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_stop_conversion(const ds1621* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    return ds1621_write(dev, DS1621_CMD_STOP_CONVERT, NULL, 0);
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_read_temperature(ds1621* const dev, float* temp)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    uint8_t raw[2] = {0};
+    if (!ds1621_read(dev, DS1621_CMD_READ_TEMPERATURE, raw, sizeof(raw)))
+    {
+        dev->temperature = DS1621_INVALID_TEMPERATURE;
+        return false;
+    }
+
+    dev->temperature = ds1621_decode_temp(raw);
+    if (temp)
+    {
+        *temp = dev->temperature;
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_read_temperature_hires(ds1621* const dev, float* temp)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    uint8_t raw[2] = {0};
+    uint8_t counter = 0;
+    uint8_t slope = 0;
+
+    if (!ds1621_read(dev, DS1621_CMD_READ_TEMPERATURE, raw, sizeof(raw)) ||
+        !ds1621_read(dev, DS1621_CMD_READ_COUNTER, &counter, 1) ||
+        !ds1621_read(dev, DS1621_CMD_READ_SLOPE, &slope, 1) ||
+        slope == 0)
+    {
+        dev->temperature = DS1621_INVALID_TEMPERATURE;
+        return false;
+    }
+
+    // The 0.5 degC bit must be dropped before the slope correction is applied
+    const float truncated = (float)(int8_t)raw[0];
+    dev->temperature = truncated - 0.25f +
+                       (((float)slope - (float)counter) / (float)slope);
+    if (temp)
+    {
+        *temp = dev->temperature;
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_measure_temperature(ds1621* const dev, bool hires, float* temp)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    if (!ds1621_start_conversion(dev))
+    {
+        return false;
+    }
+
+    for (uint32_t elapsed = 0; elapsed <= DS1621_CONVERSION_TIME_MS;
+         elapsed += DS1621_POLL_STEP_MS)
+    {
+        ds1621_status status;
+        if (!ds1621_read_status(dev, &status))
+        {
+            return false;
+        }
+        if (status.conversion_done)
+        {
+            return hires ? ds1621_read_temperature_hires(dev, temp)
+                         : ds1621_read_temperature(dev, temp);
+        }
+        ds1621_delay_ms(DS1621_POLL_STEP_MS);
+    }
+
+    dev->temperature = DS1621_INVALID_TEMPERATURE;
+    return false;
+}
+
+//-----------------------------------------------------------------------------
+float ds1621_get_temperature(const ds1621* const dev)
+{
+    if (!dev)
+    {
+        return DS1621_INVALID_TEMPERATURE;
+    }
+    return dev->temperature;
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_set_thermostat(const ds1621* const dev, float th, float tl)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    return ds1621_write_trip_point(dev, DS1621_CMD_ACCESS_TH, th) &&
+           ds1621_write_trip_point(dev, DS1621_CMD_ACCESS_TL, tl);
+}
+
+//-----------------------------------------------------------------------------
+bool ds1621_get_thermostat(const ds1621* const dev, float* th, float* tl)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    uint8_t raw[2] = {0};
+    if (th)
+    {
+        if (!ds1621_read(dev, DS1621_CMD_ACCESS_TH, raw, sizeof(raw)))
+        {
+            return false;
+        }
+        *th = ds1621_decode_temp(raw);
+    }
+    if (tl)
+    {
+        if (!ds1621_read(dev, DS1621_CMD_ACCESS_TL, raw, sizeof(raw)))
+        {
+            return false;
+        }
+        *tl = ds1621_decode_temp(raw);
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------

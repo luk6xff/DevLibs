@@ -257,10 +257,11 @@ void rfm69_sleep(rfm69 *const dev)
 }
 
 //------------------------------------------------------------------------------
-void rfm69_set_address(rfm69 *const dev, uint8_t addr)
+void rfm69_set_address(rfm69 *const dev, uint16_t addr)
 {
     dev->settings.node_id = addr;
-    rfm69_write_reg(dev, REG_NODEADRS, dev->settings.node_id);
+    // Only the low byte fits into the HW address filter register
+    rfm69_write_reg(dev, REG_NODEADRS, (uint8_t)dev->settings.node_id);
 }
 
 //------------------------------------------------------------------------------

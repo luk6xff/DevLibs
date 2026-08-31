@@ -1,0 +1,29 @@
+{
+    "name": "BMP180",
+    "description": "BMP180 digital barometric pressure and temperature sensor library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "stm32cube"
+    ],
+    "keywords": [
+        "BMP180",
+        "Pressure Sensor",
+        "Temperature Sensor",
+        "Barometer",
+        "I2C"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BMP180"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BMP180"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

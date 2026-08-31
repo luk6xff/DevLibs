@@ -69,17 +69,17 @@ bool bme280_set_configuration(bme280 *const dev)
 
     // ctrl_hum
     cmd[0] = BME280_REGISTER_CTRL_HUM;
-    ctrl_hum_reg h = { .osrs_h = SAMPLING_X1, .none = 0 };
+    ctrl_hum_reg h = { .bits = { .osrs_h = SAMPLING_X1, .none = 0 } };
     cmd[1] = h.reg;
     status += bme280_write(dev, cmd, 2);
     // ctrl_meas
     cmd[0] = BME280_REGISTER_CTRL_MEAS;
-    ctrl_meas_reg m = { .mode = MODE_SLEEP, .osrs_p = SAMPLING_X1, .osrs_t = SAMPLING_X1 };
+    ctrl_meas_reg m = { .bits = { .mode = MODE_SLEEP, .osrs_p = SAMPLING_X1, .osrs_t = SAMPLING_X1 } };
     cmd[1] = m.reg;
     status += bme280_write(dev, cmd, 2);
     // config
     cmd[0] = BME280_REGISTER_CONFIG;
-    config_reg c = { .filter = FILTER_OFF, .t_sb = STANDBY_MS_1000 };
+    config_reg c = { .bits = { .filter = FILTER_OFF, .t_sb = STANDBY_MS_1000 } };
     cmd[1] = c.reg;
     status += bme280_write(dev, cmd, 2);
 
@@ -127,7 +127,8 @@ bool bme280_set_configuration(bme280 *const dev)
 //------------------------------------------------------------------------------
 bool bme280_reset(bme280 *const dev)
 {
-	return write8(dev, BME280_REGISTER_CHIPID, 0xB6);
+    // 0xB6 written to the soft reset register triggers a power-on-reset cycle
+    return write8(dev, BME280_REGISTER_SOFTRESET, 0xB6);
 }
 
 //------------------------------------------------------------------------------
@@ -136,13 +137,12 @@ bool bme280_set_mode(bme280 *const dev, bme280_sensor_mode mode)
     uint8_t data;
     if (read8(dev, BME280_REGISTER_CTRL_MEAS, &data))
     {
-		ctrl_meas_reg *p = (ctrl_meas_reg*)&data;
-		p->mode = mode;
-		return write8(dev, BME280_REGISTER_CTRL_MEAS, p->reg);
-	}
+        ctrl_meas_reg reg = { .reg = data };
+        reg.bits.mode = mode;
+        return write8(dev, BME280_REGISTER_CTRL_MEAS, reg.reg);
+    }
     return false;
 }
-
 
 //------------------------------------------------------------------------------
 uint8_t bme280_sensor_id(bme280 *const dev)
@@ -324,7 +324,7 @@ float bme280_sea_level_for_altitude(float altitude, float atmospheric)
 float bme280_get_temperature_compensation(bme280 *const dev)
 {
     return (float)((((uint32_t)(dev->t_fine_adjust * 5)) >> 8) / 100);
-};
+}
 
 
 //------------------------------------------------------------------------------
@@ -332,4 +332,4 @@ void bme280_set_temperature_compensation(bme280 *const dev, float adjustment)
 {
     // Convert the value in C into and adjustment to t_fine
     dev->t_fine_adjust = (int32_t)(((int32_t)adjustment * 100) << 8) / 5;
-};
+}

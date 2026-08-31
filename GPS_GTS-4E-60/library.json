@@ -1,0 +1,32 @@
+{
+    "name": "GPS_GTS-4E-60",
+    "description": "GTS-4E-60 (Fibocom) GPS module library with a NMEA 0183 parser",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "GTS-4E-60",
+        "GTS4E60",
+        "Fibocom",
+        "GPS",
+        "GNSS",
+        "NMEA",
+        "UART"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/GPS_GTS-4E-60"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/GPS_GTS-4E-60"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

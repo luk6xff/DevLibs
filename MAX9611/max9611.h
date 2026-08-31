@@ -1,285 +1,314 @@
-/*
-  @file MAX9611.h
-
-  @brief MAX9611 High-Side, Current-Sense Amplifiers with
-        12-Bit ADC and Op Amp/Comparator- Breakout I2C Library
-
-  @Author lukasz uszko(luszko@op.pl)
-
-  Tested on FRDM-KL46Z and FRDM-KL25Z
-
-  Copyright (c) 2014 luszko
-  Released under the MIT License (see http://mbed.org/license/mit)
-
-  Documentation regarding the MAX9611 might be found here:
-  http://datasheets.maximintegrated.com/en/ds/MAX9611-MAX9612.pdf
-*/
-
-//DEMO - HOW TO USE:
-// NOTE before first use, do not forget to set mCsaCurrentValueOffset in constructor, it is a value that you can obtain from method: uint16_t readRawCSAOutValue(void),
-// when a current value flowing through shunt resistor equals 0.
-/*
----------------------------------------- DEMO: 1 version ----------------------------------------
-#include "mbed.h"
-#include "max9611.h"
-
-#define MAX9611_PIN_SDA PTC9    // I2C0    //for example
-#define MAX9611_PIN_SCL PTC8
-int main()
-{
-    MAX9611 max9611(MAX9611_PIN_SDA, MAX9611_PIN_SCL);
-    Serial debug(USBTX, USBRX);
-    debug.baud(115200);
-    while(1) {
-        if(!max9611.readCSAOutputValue()){
-            debug.printf("MAX9611_CSA_Reading ERROR!- check all connections\r\n");
-        }
-        else{
-            debug.printf("MAX9611_CSA  %5.2f [mA]\r\n", max9611.getCSAOutput());
-        }
-
-        if(!max9611.readTemp()){
-            debug.printf("MAX9611_TEMP_Reading ERROR!- check all connections\r\n");
-        }
-        else{
-            debug.printf("MAX9611_TEMP:  %5.2f [C]\r\n", max9611.getTemp());
-        }
-
-
-    }
-    return 0;
-}
-*/
-
-
-
-
-
-#ifndef MAX9611_H
-#define MAX9611_H
-
-#include "mbed.h"
-
-#define MAX9611_I2C_ADDRESS 0xE1   //A0 and A1 PIN are conected to GND , Write address 0xE0, Read Address 0xE1
-
-
-
-
-
-
-class MAX9611
-{
-
-
-    /**********private members and methods********************************/
-private:
-
-    typedef enum {
-        CHANNEL_A_0=0,  /*Read current-sense amplifier output from ADC, gain = 1x*/
-        CHANNEL_A_1,    /*Read current-sense amplifier output from ADC, gain = 4x*/
-        CHANNEL_A_2,    /*Read current-sense amplifier output from ADC, gain = 8x*/
-        CHANNEL_B,      /*Read average voltage of RS+ (input common-mode voltage) from ADC*/
-        CHANNEL_C,      /*Read voltage of OUT from ADC*/
-        CHANNEL_D,      /*Read voltage of SET from ADC*/
-        CHANNEL_E,      /*Read internal die temperature from ADC*/
-        ALL_CHANNELS    /*Read all channels in fast-read mode, sequentially every 2ms. Uses last gain setting.*/
-    } eCtrlReg1MUX;
-
-    typedef enum {
-        NORMAL_OPERATION_SHDN=0,
-        SHUTDOWN_MODE
-    } eCtrlReg1SHDN;
-
-    typedef enum {
-        NORMAL_OPERATION_LR=0,
-        RESET
-    } eCtrlReg1LR;
-
-    typedef enum {
-        NORMAL_OPERATION_MODE=0,
-        COMPARATOR_MODE=7,
-        OPAMP_MODE=3
-    } eCtrlReg1MODE;
-
-//watchdog delay time
-    typedef enum {
-        _1MS=0,
-        _100US=1
-    } eCtrlReg2DTIM;
-
-//watchdog retry delay time
-    typedef enum {
-        _50MS=0,
-        _10MS=1
-    } eCtrlReg2RTIM;
-
-    //watchdog retry delay time
-    typedef enum {
-        CSA_DATA_BYTE_MSB_ADRR= 0x00,
-        CSA_DATA_BYTE_LSB_ADRR= 0x01,
-        RS_DATA_BYTE_MSB_ADRR= 0x02,
-        RS_DATA_BYTE_LSB_ADRR= 0x03,
-        OUT_DATA_BYTE_MSB_ADRR= 0x04,
-        OUT_DATA_BYTE_LSB_ADRR= 0x05,
-        SET_DATA_BYTE_MSB_ADRR= 0x06,
-        SET_DATA_BYTE_LSB_ADRR= 0x07,
-        TEMP_DATA_BYTE_MSB_ADRR= 0x08,
-        TEMP_DATA_BYTE_LSB_ADRR= 0x09,
-        CONTROL_REGISTER_1_ADRR= 0x0A,
-        CONTROL_REGISTER_2_ADRR= 0x0B
-    } eRegAddresses;
-
-
-
-    /** Write data to the given register
-     *
-     * @returns
-     *   1 on success,
-     *   0 on error
-     */
-    bool write(uint8_t regAddress, uint8_t* data,int dataLength);
-
-    /** Write data to the given register
-     * @param register Address
-     * @param data to read
-     * @param length of data to read
-     * @returns
-     *   1 on success,
-     *   0 on error
-     */
-    bool read(uint8_t regAddress, uint8_t* data,int length);
-
-
-    /** Make 12 bit data from 2 bytes received from thr device data read from Data regiters of Max9611/9612 are laid in the following way :
-     *  Byte 1:  bit7-MSB12........bit0-MSB05 ;  Byte 2: bit7-LSB04.... bit4-LSB00
-     * @param MSB byte
-     * @param 4 bits of LSB bytes
-     * @returns 1 2bit data
-     *
-     */
-    inline uint16_t get12BitData(uint8_t msbByte,uint8_t lsbByte) {
-        uint16_t data12Bit= (msbByte<<4)|((lsbByte>>4)&0x0F);
-        return data12Bit;
-    }
-
-
-    inline uint16_t get9BitData(uint8_t msbByte,uint8_t lsbByte) {
-        uint16_t data9Bit= (msbByte<<1)|((lsbByte>>6)&0x01);
-        return data9Bit;
-    }
-
-
-    /** Compute a value of current coefficient to be used to mulitiple by rawData obained from CSA output in order to getting real current value in [mA]
-     * @param empty
-     * @returns coefficient that you can used to get real value of measured current depending on muxReg value
-     *
-     */
-    inline float getCSACurrentCoeffmA(void) {
-        float coeff=1;
-        switch(mMuxReg) {
-            case CHANNEL_A_0:    /*gain = 1x*/
-                coeff=1.075;
-                break;           
-            case CHANNEL_A_1:    /*gain = 4x*/
-                coeff=0.269;
-                break;
-            case CHANNEL_A_2:    /*gain = 8x*/
-                coeff=0.134;
-                break;
-            default:                
-                break;
-        }
-        return coeff;
-    }
-
-    /**********protected members********************************/
-protected:
-
-    I2C mI2c;
-    int mI2cAddr;
-    float mTemperature;
-    float mCurrentSenseAmplifierOutput;
-    uint16_t mCsaCurrentValueOffset;  //this parameter depends on your sensor
-    uint8_t mMuxReg;//
-
-
-    /**********public methods********************************/
-public:
-
-    /** Create an MAX9611 instance
-     * @param sda pin
-     * @param scl pin
-     * @param address: I2C slave address
-     */
-    MAX9611(PinName sda, PinName scl,int i2cFrequency=100000,int address = MAX9611_I2C_ADDRESS);
-
-
-    /** Create a MAX9611 instance
-     * @param i2c object
-     * @param address: I2C slave address
-     */
-    MAX9611(I2C& i2c, int address = MAX9611_I2C_ADDRESS);
-
-
-    /** Initialization: set member values and configuration registers, ought to be invoked in the body of constructor
-     * @returns
-     *    true on success,
-     *    false on error
-     */
-    bool initMax9611(eCtrlReg1MUX mux= CHANNEL_A_1,
-                     eCtrlReg1SHDN shdn= NORMAL_OPERATION_SHDN,
-                     eCtrlReg1LR lr=NORMAL_OPERATION_LR,
-                     eCtrlReg1MODE mode= NORMAL_OPERATION_MODE,
-                     eCtrlReg2DTIM watchdogDelay= _1MS,
-                     eCtrlReg2RTIM watchdogRetryDelay=_50MS);
-
-
-    /** Read temperature from the MAX9611.
-     * @param none
-     * @returns
-     *   1 on success,
-     *   0 on error
-     */
-    bool readTemp(void);
-
-
-    /** Get temperature from the last measurement
-     *
-     * @returns
-     *   temperature (C)
-     */
-    inline float getTemp(void) {
-        return mTemperature;
-    }
-
-
-    /** Read CSA output value from the MAX9611.
-      * @param none
-      * @returns
-      *   1 on success,
-      *   0 on error
-      */
-    bool readCSAOutputValue(void);
-
-
-    /** Get value of CSA output from the last measurement
-      *
-      * @returns
-      *   Current Value [mA]
-      */
-    inline float getCSAOutput(void) {
-        return mCurrentSenseAmplifierOutput;
-    }
-
-    //DEBUG
-    uint16_t mRawInt;
-    uint16_t readRawControl(void);
-    uint16_t readRawCSAOutValue(void);
-    uint16_t readRawRsValue(void);
-    uint16_t readRawOutValue(void);
-
-
-
-};
-
+/**
+ *  @brief:   MAX9611 high-side current-sense amplifier with 12-bit ADC library
+ *  @author:  luk6xff
+ *  @email:   lukasz.uszko@gmail.com
+ *  @date:    2020-09-02
+ *  @license: MIT
+ */
+
+#ifndef __MAX9611_H__
+#define __MAX9611_H__
+
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+/**
+ * @brief I2C slave addresses (7-bit, unshifted).
+ *
+ * The address is strapped with the A0 and A1 pins, each of them can be tied to
+ * GND, VCC, SDA or SCL, which gives the 0x70..0x7F address range.
+ * MAX9611_I2C_ADDR_A1_GND_A0_GND matches the 0xE0 write / 0xE1 read address
+ * pair quoted in the MAX9611 datasheet.
+ */
+#define MAX9611_I2C_ADDR_A1_GND_A0_GND  0x70
+#define MAX9611_I2C_ADDR_A1_GND_A0_VCC  0x71
+#define MAX9611_I2C_ADDR_A1_GND_A0_SDA  0x72
+#define MAX9611_I2C_ADDR_A1_GND_A0_SCL  0x73
+#define MAX9611_I2C_ADDR_A1_VCC_A0_GND  0x74
+#define MAX9611_I2C_ADDR_A1_VCC_A0_VCC  0x75
+#define MAX9611_I2C_ADDR_A1_VCC_A0_SDA  0x76
+#define MAX9611_I2C_ADDR_A1_VCC_A0_SCL  0x77
+#define MAX9611_I2C_ADDR_A1_SDA_A0_GND  0x78
+#define MAX9611_I2C_ADDR_A1_SDA_A0_VCC  0x79
+#define MAX9611_I2C_ADDR_A1_SDA_A0_SDA  0x7A
+#define MAX9611_I2C_ADDR_A1_SDA_A0_SCL  0x7B
+#define MAX9611_I2C_ADDR_A1_SCL_A0_GND  0x7C
+#define MAX9611_I2C_ADDR_A1_SCL_A0_VCC  0x7D
+#define MAX9611_I2C_ADDR_A1_SCL_A0_SDA  0x7E
+#define MAX9611_I2C_ADDR_A1_SCL_A0_SCL  0x7F
+
+/** Time needed by the ADC to convert a freshly selected channel */
+#define MAX9611_CONVERSION_TIME_MS      2u
+
+/** Current-sense amplifier LSB in microvolts, per gain setting */
+#define MAX9611_CSA_LSB_UV_GAIN_1X      107.50f
+#define MAX9611_CSA_LSB_UV_GAIN_4X      26.88f
+#define MAX9611_CSA_LSB_UV_GAIN_8X      13.44f
+
+/** RS+ common mode voltage LSB in volts */
+#define MAX9611_RS_LSB_V                0.014f
+
+/** OUT and SET voltage LSB in volts */
+#define MAX9611_OUT_LSB_V               0.00345f
+
+/** Die temperature LSB in degrees Celsius */
+#define MAX9611_TEMP_LSB_C              0.48f
+
+/**
+ * @brief Device register map
+ */
+typedef enum
+{
+    MAX9611_REG_CSA_MSB  = 0x00,
+    MAX9611_REG_CSA_LSB  = 0x01,
+    MAX9611_REG_RS_MSB   = 0x02,
+    MAX9611_REG_RS_LSB   = 0x03,
+    MAX9611_REG_OUT_MSB  = 0x04,
+    MAX9611_REG_OUT_LSB  = 0x05,
+    MAX9611_REG_SET_MSB  = 0x06,
+    MAX9611_REG_SET_LSB  = 0x07,
+    MAX9611_REG_TEMP_MSB = 0x08,
+    MAX9611_REG_TEMP_LSB = 0x09,
+    MAX9611_REG_CTRL1    = 0x0A,
+    MAX9611_REG_CTRL2    = 0x0B,
+} max9611_reg;
+
+/**
+ * @brief ADC input multiplexer selection, bits [2:0] of CTRL1
+ */
+typedef enum
+{
+    MAX9611_MUX_CSA_GAIN_1X    = 0, // Current-sense amplifier output, gain 1x
+    MAX9611_MUX_CSA_GAIN_4X    = 1, // Current-sense amplifier output, gain 4x
+    MAX9611_MUX_CSA_GAIN_8X    = 2, // Current-sense amplifier output, gain 8x
+    MAX9611_MUX_RS_COMMON_MODE = 3, // Average voltage of RS+
+    MAX9611_MUX_OUT_VOLTAGE    = 4, // Voltage of the OUT pin
+    MAX9611_MUX_SET_VOLTAGE    = 5, // Voltage of the SET pin
+    MAX9611_MUX_TEMPERATURE    = 6, // Internal die temperature
+    MAX9611_MUX_ALL_CHANNELS   = 7, // Fast-read mode, all channels every 2 ms
+} max9611_mux;
+
+/**
+ * @brief Current-sense amplifier gain
+ */
+typedef enum
+{
+    MAX9611_GAIN_1X = 0, // Full scale 110 mV across the shunt
+    MAX9611_GAIN_4X = 1, // Full scale 27.5 mV across the shunt
+    MAX9611_GAIN_8X = 2, // Full scale 13.75 mV across the shunt
+} max9611_gain;
+
+/**
+ * @brief Op amp / comparator operating mode, bits [7:5] of CTRL1
+ */
+typedef enum
+{
+    MAX9611_MODE_NORMAL     = 0,
+    MAX9611_MODE_OPAMP      = 3,
+    MAX9611_MODE_COMPARATOR = 7,
+} max9611_mode;
+
+/**
+ * @brief Watchdog delay time, bit 3 of CTRL2
+ */
+typedef enum
+{
+    MAX9611_WATCHDOG_DELAY_1MS   = 0,
+    MAX9611_WATCHDOG_DELAY_100US = 1,
+} max9611_watchdog_delay;
+
+/**
+ * @brief Watchdog retry delay time, bit 2 of CTRL2
+ */
+typedef enum
+{
+    MAX9611_WATCHDOG_RETRY_50MS = 0,
+    MAX9611_WATCHDOG_RETRY_10MS = 1,
+} max9611_watchdog_retry;
+
+/**
+ * @brief Device configuration
+ */
+typedef struct
+{
+    max9611_mode mode;                        // Op amp / comparator mode
+    bool shutdown;                            // True puts the device into shutdown
+    max9611_mux mux;                          // Channel selected by the ADC mux
+    max9611_watchdog_delay watchdog_delay;    // Watchdog delay time
+    max9611_watchdog_retry watchdog_retry;    // Watchdog retry delay time
+} max9611_config;
+
+/**
+ * @brief max9611 dev object
+ */
+typedef struct
+{
+    uint8_t i2c_addr;     // 7-bit I2C slave address
+    float shunt_res_ohm;  // Sense resistor value in ohms, e.g. 0.1f
+    max9611_gain gain;    // Current-sense amplifier gain used for current readings
+    uint16_t csa_offset;  // Raw CSA code measured at zero current, subtracted from every reading
+    void* platform_dev;   // Platform descriptor, assigned by max9611_<platform>_init()
+} max9611;
+
+/**
+ * @brief Initialize the device and apply the default configuration.
+ *
+ * Default: normal mode, device running, ADC mux following `dev->gain`,
+ * 1 ms watchdog delay and 50 ms watchdog retry delay.
+ * `dev->shunt_res_ohm` must be set to a positive value beforehand.
+ *
+ * @param dev max9611 device object
+ * @return True on success, false otherwise
+ */
+bool max9611_init(max9611* const dev);
+
+/**
+ * @brief Apply a device configuration.
+ *
+ * @param dev max9611 device object
+ * @param cfg Configuration to be applied
+ * @return True on success, false otherwise
+ */
+bool max9611_set_config(const max9611* const dev,
+                        const max9611_config* const cfg);
+
+/**
+ * @brief Read back the current device configuration.
+ *
+ * @param      dev max9611 device object
+ * @param[out] cfg Configuration read from the device
+ * @return True on success, false otherwise
+ */
+bool max9611_get_config(const max9611* const dev, max9611_config* const cfg);
+
+/**
+ * @brief Select the ADC input channel and wait for a conversion to complete.
+ *
+ * @param dev max9611 device object
+ * @param mux Channel to be selected
+ * @return True on success, false otherwise
+ */
+bool max9611_select_channel(const max9611* const dev, max9611_mux mux);
+
+/**
+ * @brief Select the current-sense amplifier gain used by max9611_read_current().
+ *
+ * @param dev  max9611 device object
+ * @param gain Gain to be applied
+ * @return True on success, false otherwise
+ */
+bool max9611_set_gain(max9611* const dev, max9611_gain gain);
+
+/**
+ * @brief Select a channel, convert it and return the raw ADC code.
+ *
+ * All channels are 12 bit wide except the temperature channel, which is 9 bit.
+ *
+ * @param      dev max9611 device object
+ * @param      mux Channel to be read, MAX9611_MUX_ALL_CHANNELS is not supported
+ * @param[out] raw Raw, right aligned ADC code
+ * @return True on success, false otherwise
+ */
+bool max9611_read_raw(const max9611* const dev, max9611_mux mux, uint16_t* raw);
+
+/**
+ * @brief Read the voltage drop across the sense resistor.
+ *
+ * @param      dev        max9611 device object
+ * @param[out] voltage_mv Shunt voltage in millivolts
+ * @return True on success, false otherwise
+ */
+bool max9611_read_shunt_voltage(const max9611* const dev, float* voltage_mv);
+
+/**
+ * @brief Read the current flowing through the sense resistor.
+ *
+ * @param      dev        max9611 device object
+ * @param[out] current_ma Current in milliamperes
+ * @return True on success, false otherwise
+ */
+bool max9611_read_current(const max9611* const dev, float* current_ma);
+
+/**
+ * @brief Read the common mode voltage present on the RS+ input.
+ *
+ * @param      dev       max9611 device object
+ * @param[out] voltage_v Input voltage in volts
+ * @return True on success, false otherwise
+ */
+bool max9611_read_input_voltage(const max9611* const dev, float* voltage_v);
+
+/**
+ * @brief Read the voltage of the OUT pin.
+ *
+ * @param      dev       max9611 device object
+ * @param[out] voltage_v OUT voltage in volts
+ * @return True on success, false otherwise
+ */
+bool max9611_read_out_voltage(const max9611* const dev, float* voltage_v);
+
+/**
+ * @brief Read the voltage of the SET pin.
+ *
+ * @param      dev       max9611 device object
+ * @param[out] voltage_v SET voltage in volts
+ * @return True on success, false otherwise
+ */
+bool max9611_read_set_voltage(const max9611* const dev, float* voltage_v);
+
+/**
+ * @brief Read the internal die temperature.
+ *
+ * @param      dev    max9611 device object
+ * @param[out] temp_c Temperature in degrees Celsius
+ * @return True on success, false otherwise
+ */
+bool max9611_read_temperature(const max9611* const dev, float* temp_c);
+
+
+//-----------------------------------------------------------------------------
+// @brief HW dependent functions - must be defined for each platform
+//-----------------------------------------------------------------------------
+
+/**
+ * @brief Write bytes into max9611 device
+ *
+ * @param dev      max9611 device object
+ * @param reg_addr Register address
+ * @param buf      Data to be written
+ * @param buf_size Number of bytes to be written
+ * @return True on success, false otherwise
+ */
+extern bool max9611_write(const max9611* const dev, uint8_t reg_addr,
+                          const uint8_t* buf, size_t buf_size);
+
+/**
+ * @brief Read bytes from max9611 device
+ *
+ * @param      dev      max9611 device object
+ * @param      reg_addr Register address
+ * @param[out] buf      Buffer to fill with read bytes
+ * @param      buf_size Number of bytes to read
+ * @return True on success, false otherwise
+ */
+extern bool max9611_read(const max9611* const dev, uint8_t reg_addr,
+                         uint8_t* buf, size_t buf_size);
+
+/**
+ * @brief Block for a given number of milliseconds.
+ *
+ * @param delay_ms Delay in milliseconds
+ */
+extern void max9611_delay_ms(uint32_t delay_ms);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MAX9611_H__ */

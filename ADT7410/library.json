@@ -1,0 +1,27 @@
+{
+    "name": "ADT7410",
+    "description": "ADT7410 digital temperature sensor library - http://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "ADT7410",
+        "Temperature Sensor"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/ADT7410"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/ADT7410"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

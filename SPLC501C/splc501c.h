@@ -1,206 +1,445 @@
-/*
- * splc501c.h
- *
- *  Created on: May 9, 2012
- *      Author: lukasz
+/**
+ *  @brief:   SPLC501C 128x64 monochrome graphic LCD library
+ *  @author:  luk6xff
+ *  @email:   lukasz.uszko@gmail.com
+ *  @date:    2020-09-02
+ *  @license: MIT
  */
 
-#include "stdbool.h"
-#include <stdlib.h>
-#include <stdio.h>
-#ifndef SPLC501C_H_
-#define SPLC501C_H_
+#ifndef __SPLC501C_H__
+#define __SPLC501C_H__
 
-#define SCREEN_WIDTH 	132
-#define SCREEN_HEIGHT	64
-#define PIXELS_PER_PAGE	8
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+/**
+ * @brief Panel geometry
+ */
+#define SPLC501C_WIDTH              128
+#define SPLC501C_HEIGHT             64
+#define SPLC501C_PIXELS_PER_PAGE    8
+#define SPLC501C_PAGES              (SPLC501C_HEIGHT / SPLC501C_PIXELS_PER_PAGE)
+#define SPLC501C_FRAMEBUF_SIZE      (SPLC501C_WIDTH * SPLC501C_PAGES)
+
+/** The controller RAM is 132 columns wide while the panel shows only 128 of them */
+#define SPLC501C_RAM_WIDTH          132
+#define SPLC501C_RAM_COLUMN_SKEW    (SPLC501C_RAM_WIDTH - SPLC501C_WIDTH)
+
+/**
+ * @brief Built-in 5x7 font, covers ASCII 32..127
+ */
+#define SPLC501C_FONT_WIDTH         5
+#define SPLC501C_FONT_HEIGHT        7
+#define SPLC501C_FONT_FIRST_CHAR    32
+#define SPLC501C_FONT_LAST_CHAR     127
+#define SPLC501C_FONT_CHAR_SPACING  1
+#define SPLC501C_CHAR_WIDTH         (SPLC501C_FONT_WIDTH + SPLC501C_FONT_CHAR_SPACING)
+
+/**
+ * @brief Controller command set
+ */
+#define SPLC501C_CMD_DISPLAY_ON         0xAF
+#define SPLC501C_CMD_DISPLAY_OFF        0xAE
+#define SPLC501C_CMD_START_LINE         0x40  // OR-ed with the line number 0..63
+#define SPLC501C_CMD_PAGE_ADDRESS       0xB0  // OR-ed with the page number 0..7
+#define SPLC501C_CMD_COLUMN_ADDRESS_HI  0x10  // OR-ed with the upper column nibble
+#define SPLC501C_CMD_COLUMN_ADDRESS_LO  0x00  // OR-ed with the lower column nibble
+#define SPLC501C_CMD_ADC_NORMAL         0xA0
+#define SPLC501C_CMD_ADC_REVERSE        0xA1
+#define SPLC501C_CMD_DISPLAY_NORMAL     0xA6
+#define SPLC501C_CMD_DISPLAY_REVERSE    0xA7
+#define SPLC501C_CMD_DISPLAY_ALL_ON     0xA5
+#define SPLC501C_CMD_DISPLAY_ALL_OFF    0xA4
+#define SPLC501C_CMD_BIAS_1_9           0xA2
+#define SPLC501C_CMD_BIAS_1_5           0xA3
+#define SPLC501C_CMD_RMW_START          0xE0
+#define SPLC501C_CMD_RMW_END            0xEE
+#define SPLC501C_CMD_SOFT_RESET         0xE2
+#define SPLC501C_CMD_COM_NORMAL         0xC0  // COM0 -> COM63
+#define SPLC501C_CMD_COM_REVERSE        0xC8  // COM63 -> COM0
+#define SPLC501C_CMD_POWER_ON           0x2F  // Booster, regulator and follower all enabled
+#define SPLC501C_CMD_VOLTAGE_RATIO      0x20  // OR-ed with the resistor ratio 0..7
+#define SPLC501C_CMD_VOLUME_MODE        0x81  // Followed by the contrast value 0..63
+#define SPLC501C_CMD_PAGE_BLINKING      0xD5  // Followed by the page mask
+
+/** Contrast (electronic volume) limits */
+#define SPLC501C_CONTRAST_MIN           0x00
+#define SPLC501C_CONTRAST_MAX           0x3F
+#define SPLC501C_CONTRAST_DEFAULT       0x14
+
+/** Regulator resistor ratio applied on init, 0..7 */
+#define SPLC501C_VOLTAGE_RATIO_DEFAULT  4
+
+/**
+ * @brief Pixel colours of a monochrome panel
+ */
+typedef enum
+{
+    SPLC501C_COLOR_OFF     = 0, // Pixel cleared (background)
+    SPLC501C_COLOR_ON      = 1, // Pixel set (foreground)
+    SPLC501C_COLOR_INVERSE = 2, // Pixel toggled
+} splc501c_color;
+
+/**
+ * @brief Panel mounting orientation
+ */
+typedef enum
+{
+    SPLC501C_ORIENTATION_NORMAL      = 0, // Origin in the top left corner
+    SPLC501C_ORIENTATION_ROTATED_180 = 1, // Panel rotated by 180 degrees
+} splc501c_orientation;
+
+/**
+ * @brief Control lines driven by the platform layer
+ */
+typedef enum
+{
+    SPLC501C_PIN_A0    = 0, // Data (high) / command (low) select, sometimes named RS
+    SPLC501C_PIN_RESET = 1, // Active low hardware reset
+    SPLC501C_PIN_CS    = 2, // Active low chip select
+} splc501c_pin;
+
+/**
+ * @brief splc501c dev object
+ */
+typedef struct
+{
+    void* platform_dev;                  // Platform descriptor, set by splc501c_<platform>_init()
+    uint8_t buf[SPLC501C_FRAMEBUF_SIZE]; // Page organised framebuffer, 1 bit per pixel
+    int16_t cursor_x;                    // Text cursor, x coordinate in pixels
+    int16_t cursor_y;                    // Text cursor, y coordinate in pixels
+    splc501c_orientation orientation;    // Current panel orientation
+    splc501c_color text_color;           // Colour used by splc501c_print()
+    uint8_t contrast;                    // Cached contrast value 0..63
+    bool inverted;                       // True when the panel shows an inverted image
+    bool display_on;                     // True when the panel is powered on
+} splc501c;
+
+/**
+ * @brief Initialize the display and clear the framebuffer.
+ *
+ * @param dev splc501c device object
+ * @return True on success, false otherwise
+ */
+bool splc501c_init(splc501c* const dev);
+
+/**
+ * @brief Pulse the RESET line and re-apply the power-up command sequence.
+ *
+ * @param dev splc501c device object
+ * @return True on success, false otherwise
+ */
+bool splc501c_reset(splc501c* const dev);
+
+/**
+ * @brief Turn the panel on or off, the framebuffer content is preserved.
+ *
+ * @param dev splc501c device object
+ * @param on  True to turn the display on
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_display_on(splc501c* const dev, bool on);
+
+/**
+ * @brief Set the electronic volume (contrast).
+ *
+ * @param dev      splc501c device object
+ * @param contrast Contrast, clamped to SPLC501C_CONTRAST_MAX
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_contrast(splc501c* const dev, uint8_t contrast);
+
+/**
+ * @brief Show the framebuffer normally or with all the pixels inverted.
+ *
+ * @param dev      splc501c device object
+ * @param inverted True to invert the panel
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_inverted(splc501c* const dev, bool inverted);
+
+/**
+ * @brief Select the panel orientation.
+ *
+ * @param dev         splc501c device object
+ * @param orientation Orientation to be applied
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_orientation(splc501c* const dev,
+                              splc501c_orientation orientation);
+
+/**
+ * @brief Push the whole framebuffer to the panel.
+ *
+ * All the drawing primitives only touch the framebuffer, nothing shows up on
+ * the panel until this function is called.
+ *
+ * @param dev splc501c device object
+ * @return True on success, false otherwise
+ */
+bool splc501c_update(splc501c* const dev);
+
+/**
+ * @brief Fill the framebuffer with a single colour.
+ *
+ * @param dev   splc501c device object
+ * @param color SPLC501C_COLOR_ON fills the framebuffer, anything else clears it
+ * @return True on success, false otherwise
+ */
+bool splc501c_clear(splc501c* const dev, splc501c_color color);
+
+/**
+ * @brief Draw a single pixel, coordinates outside the panel are discarded.
+ *
+ * @param dev   splc501c device object
+ * @param x     X coordinate
+ * @param y     Y coordinate
+ * @param color Pixel colour
+ * @return True when the pixel was inside the panel, false otherwise
+ */
+bool splc501c_draw_pixel(splc501c* const dev, int16_t x, int16_t y,
+                         splc501c_color color);
+
+/**
+ * @brief Read a pixel back from the framebuffer.
+ *
+ * @param dev splc501c device object
+ * @param x   X coordinate
+ * @param y   Y coordinate
+ * @return True when the pixel is set, false when it is cleared or out of range
+ */
+bool splc501c_get_pixel(const splc501c* const dev, int16_t x, int16_t y);
+
+/**
+ * @brief Draw a horizontal line, clipped to the panel.
+ *
+ * @param dev   splc501c device object
+ * @param x     X coordinate of the left end
+ * @param y     Y coordinate
+ * @param len   Length in pixels, negative values extend to the left
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_hline(splc501c* const dev, int16_t x, int16_t y,
+                         int16_t len, splc501c_color color);
+
+/**
+ * @brief Draw a vertical line, clipped to the panel.
+ *
+ * @param dev   splc501c device object
+ * @param x     X coordinate
+ * @param y     Y coordinate of the top end
+ * @param len   Length in pixels, negative values extend upwards
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_vline(splc501c* const dev, int16_t x, int16_t y,
+                         int16_t len, splc501c_color color);
+
+/**
+ * @brief Draw a line between two points, clipped to the panel.
+ *
+ * @param dev   splc501c device object
+ * @param x0    X coordinate of the first point
+ * @param y0    Y coordinate of the first point
+ * @param x1    X coordinate of the second point
+ * @param y1    Y coordinate of the second point
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_line(splc501c* const dev, int16_t x0, int16_t y0,
+                        int16_t x1, int16_t y1, splc501c_color color);
+
+/**
+ * @brief Draw a rectangle outline, clipped to the panel.
+ *
+ * @param dev    splc501c device object
+ * @param x      X coordinate of the top left corner
+ * @param y      Y coordinate of the top left corner
+ * @param width  Rectangle width in pixels
+ * @param height Rectangle height in pixels
+ * @param color  Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_rect(splc501c* const dev, int16_t x, int16_t y,
+                        int16_t width, int16_t height, splc501c_color color);
+
+/**
+ * @brief Draw a filled rectangle, clipped to the panel.
+ *
+ * @param dev    splc501c device object
+ * @param x      X coordinate of the top left corner
+ * @param y      Y coordinate of the top left corner
+ * @param width  Rectangle width in pixels
+ * @param height Rectangle height in pixels
+ * @param color  Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_fill_rect(splc501c* const dev, int16_t x, int16_t y,
+                        int16_t width, int16_t height, splc501c_color color);
+
+/**
+ * @brief Draw a circle outline, clipped to the panel.
+ *
+ * @param dev    splc501c device object
+ * @param cx     X coordinate of the centre
+ * @param cy     Y coordinate of the centre
+ * @param radius Radius in pixels
+ * @param color  Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_circle(splc501c* const dev, int16_t cx, int16_t cy,
+                          int16_t radius, splc501c_color color);
+
+/**
+ * @brief Draw a filled circle, clipped to the panel.
+ *
+ * @param dev    splc501c device object
+ * @param cx     X coordinate of the centre
+ * @param cy     Y coordinate of the centre
+ * @param radius Radius in pixels
+ * @param color  Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_fill_circle(splc501c* const dev, int16_t cx, int16_t cy,
+                          int16_t radius, splc501c_color color);
+
+/**
+ * @brief Draw a single character of the built-in 5x7 font.
+ *
+ * Only the lit pixels of the glyph are touched, the background is left as it
+ * is. Characters outside ASCII 32..127 are rendered as a space.
+ *
+ * @param dev   splc501c device object
+ * @param c     Character to be drawn
+ * @param x     X coordinate of the top left corner of the glyph
+ * @param y     Y coordinate of the top left corner of the glyph
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_char(splc501c* const dev, char c, int16_t x, int16_t y,
+                        splc501c_color color);
+
+/**
+ * @brief Draw a NUL terminated string using the built-in 5x7 font.
+ *
+ * @param dev   splc501c device object
+ * @param str   String to be drawn
+ * @param x     X coordinate of the top left corner of the first glyph
+ * @param y     Y coordinate of the top left corner of the first glyph
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_string(splc501c* const dev, const char* str, int16_t x,
+                          int16_t y, splc501c_color color);
+
+/**
+ * @brief Move the text cursor used by splc501c_print().
+ *
+ * @param dev splc501c device object
+ * @param x   X coordinate in pixels
+ * @param y   Y coordinate in pixels
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_cursor(splc501c* const dev, int16_t x, int16_t y);
+
+/**
+ * @brief Select the colour used by splc501c_print().
+ *
+ * @param dev   splc501c device object
+ * @param color Pixel colour
+ * @return True on success, false otherwise
+ */
+bool splc501c_set_text_color(splc501c* const dev, splc501c_color color);
+
+/**
+ * @brief Draw a string at the current cursor and advance the cursor.
+ *
+ * A newline moves the cursor to the beginning of the next text line, the
+ * cursor also wraps automatically at the right edge of the panel.
+ *
+ * @param dev splc501c device object
+ * @param str String to be printed
+ * @return True on success, false otherwise
+ */
+bool splc501c_print(splc501c* const dev, const char* str);
+
+/**
+ * @brief Blit a 1 bit per pixel, row organised bitmap into the framebuffer.
+ *
+ * Every row starts on a byte boundary and the most significant bit of a byte
+ * is the leftmost pixel. Parts falling outside the panel are clipped away.
+ *
+ * @param dev    splc501c device object
+ * @param x      X coordinate of the top left corner
+ * @param y      Y coordinate of the top left corner
+ * @param width  Bitmap width in pixels
+ * @param height Bitmap height in pixels
+ * @param bitmap Bitmap data, ((width + 7) / 8) * height bytes
+ * @param color  Colour used for the bits that are set
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_bitmap(splc501c* const dev, int16_t x, int16_t y,
+                          int16_t width, int16_t height,
+                          const uint8_t* bitmap, splc501c_color color);
+
+/**
+ * @brief Copy a full screen, page organised image into the framebuffer.
+ *
+ * This is the layout the panel itself uses, one byte holds eight vertically
+ * stacked pixels and the pages follow each other from top to bottom.
+ *
+ * @param dev      splc501c device object
+ * @param image    Image data
+ * @param img_size Number of bytes, at most SPLC501C_FRAMEBUF_SIZE are copied
+ * @return True on success, false otherwise
+ */
+bool splc501c_draw_image(splc501c* const dev, const uint8_t* image,
+                         size_t img_size);
 
 
+//-----------------------------------------------------------------------------
+// @brief HW dependent functions - must be defined for each platform
+//-----------------------------------------------------------------------------
 
-#define SPLC501C_DISPLAY_ON 		0xAF
-#define SPLC501C_DISPLAY_OFF		0xAE
+/**
+ * @brief Write raw bytes into the splc501c device.
+ *
+ * The A0 and CS lines are already driven by the library when this is called.
+ *
+ * @param dev splc501c device object
+ * @param buf Data to be written
+ * @param len Number of bytes to be written
+ * @return True on success, false otherwise
+ */
+extern bool splc501c_write_bytes(const splc501c* const dev,
+                                 const uint8_t* buf, size_t len);
 
-#define SPLC501C_START_LINE			0x40
+/**
+ * @brief Drive one of the display control lines.
+ *
+ * @param dev   splc501c device object
+ * @param pin   Pin to be driven
+ * @param state True drives the pin high, false drives it low
+ */
+extern void splc501c_set_pin(const splc501c* const dev, splc501c_pin pin,
+                             bool state);
 
-#define SPLC501C_PAGE_ADDRESS		0xB0
-
-#define SPLC501C_COLUMN_ADDRESS_HI	0x10
-#define SPLC501C_COLUMN_ADDRESS_LO	0x00
-
-#define SPLC501C_ADC_NORMAL			0xA0
-#define SPLC501C_ADC_REVERSE		0xA1
-
-#define SPLC501C_DISPLAY_NORMAL		0xA6
-#define SPLC501C_DISPLAY_REVERSE	0xA7
-
-#define SPLC501C_DISPLAY_ALL_ON		0xA5
-#define SPLC501C_DISPLAY_ALL_OFF	0xA4
-
-#define SPLC501C_BIAS_19			0xA2
-#define SPLC501C_BIAS_15			0xA3
-
-#define SPLC501C_RMW_START			0xE0
-#define SPLC501C_RMW_END			0xEE
-
-#define SPLC501C_RESET				0xE2
-
-#define SPLC501C_COM0				0xC0
-#define SPLC501C_COM63				0xC8
-
-#define SPLC501C_POWERON			0x2F
-
-#define SPLC501C_VOLTAGE_RATIO		0x20
-
-#define SPLC501C_VOLUME_MODE		0x81
-#define SPLC501C_VOLUME_SET			0x00
-
-#define SPLC501C_PAGE_BLINKING_MODE	0xD5
-#define SPLC501C_PAGE_BLINKING_0	0x01
-#define SPLC501C_PAGE_BLINKING_1	0x02
-#define SPLC501C_PAGE_BLINKING_2	0x04
-#define SPLC501C_PAGE_BLINKING_3	0x08
-#define SPLC501C_PAGE_BLINKING_4	0x10
-#define SPLC501C_PAGE_BLINKING_5	0x20
-#define SPLC501C_PAGE_BLINKING_6	0x40
-#define SPLC501C_PAGE_BLINKING_7	0x80
-
-#define FONT_OFFSET 32
-#define FONT_WIDTH	5
+/**
+ * @brief Block for a given number of milliseconds.
+ *
+ * @param delay_ms Delay in milliseconds
+ */
+extern void splc501c_delay_ms(uint32_t delay_ms);
 
 
+#ifdef __cplusplus
+}
+#endif
 
-// control signals
-#define PIN_PORT_STER   GPIOB
-#define PIN_RD		GPIO_Pin_8	/* pin PB8 -> E */
-#define PIN_WR		GPIO_Pin_9	/* pin PB9 -> RW */
-#define PIN_A0		GPIO_Pin_10		/* pin PB10 -> RS */
-#define PIN_RES  	GPIO_Pin_11		/* pin PB11 -> RST */
-#define PIN_CS1 	GPIO_Pin_12		/* pin PB12  -> CS1B */
-#define PIN_PORT_DATA GPIOA
-#define PIN_ALL_STER_PORT (PIN_RD|PIN_WR|PIN_A0|PIN_RES|PIN_CS1)
-#define PIN_ALL_DATA_PORT (GPIO_Pin_0|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_5|GPIO_Pin_6|GPIO_Pin_7)
-// first databus bit
-
-static const unsigned char font5x7[] = {
-0x00, 0x00, 0x00, 0x00, 0x00,// (spacja)
-0x00, 0x00, 0x5F, 0x00, 0x00,// !
-0x00, 0x07, 0x00, 0x07, 0x00,// "
-0x14, 0x7F, 0x14, 0x7F, 0x14,// #
-0x24, 0x2A, 0x7F, 0x2A, 0x12,// $
-0x23, 0x13, 0x08, 0x64, 0x62,// %
-0x36, 0x49, 0x55, 0x22, 0x50,// &
-0x00, 0x05, 0x03, 0x00, 0x00,// '
-0x00, 0x1C, 0x22, 0x41, 0x00,// (
-0x00, 0x41, 0x22, 0x1C, 0x00,// )
-0x08, 0x2A, 0x1C, 0x2A, 0x08,// *
-0x08, 0x08, 0x3E, 0x08, 0x08,// +
-0x00, 0x50, 0x30, 0x00, 0x00,// ,
-0x08, 0x08, 0x08, 0x08, 0x08,// -
-0x00, 0x30, 0x30, 0x00, 0x00,// .
-0x20, 0x10, 0x08, 0x04, 0x02,// /
-0x3E, 0x51, 0x49, 0x45, 0x3E,// 0
-0x00, 0x42, 0x7F, 0x40, 0x00,// 1
-0x42, 0x61, 0x51, 0x49, 0x46,// 2
-0x21, 0x41, 0x45, 0x4B, 0x31,// 3
-0x18, 0x14, 0x12, 0x7F, 0x10,// 4
-0x27, 0x45, 0x45, 0x45, 0x39,// 5
-0x3C, 0x4A, 0x49, 0x49, 0x30,// 6
-0x01, 0x71, 0x09, 0x05, 0x03,// 7
-0x36, 0x49, 0x49, 0x49, 0x36,// 8
-0x06, 0x49, 0x49, 0x29, 0x1E,// 9
-0x00, 0x36, 0x36, 0x00, 0x00,// :
-0x00, 0x56, 0x36, 0x00, 0x00,// ;
-0x00, 0x08, 0x14, 0x22, 0x41,// <
-0x14, 0x14, 0x14, 0x14, 0x14,// =
-0x41, 0x22, 0x14, 0x08, 0x00,// >
-0x02, 0x01, 0x51, 0x09, 0x06,// ?
-0x32, 0x49, 0x79, 0x41, 0x3E,// @
-0x7E, 0x11, 0x11, 0x11, 0x7E,// A
-0x7F, 0x49, 0x49, 0x49, 0x36,// B
-0x3E, 0x41, 0x41, 0x41, 0x22,// C
-0x7F, 0x41, 0x41, 0x22, 0x1C,// D
-0x7F, 0x49, 0x49, 0x49, 0x41,// E
-0x7F, 0x09, 0x09, 0x01, 0x01,// F
-0x3E, 0x41, 0x41, 0x51, 0x32,// G
-0x7F, 0x08, 0x08, 0x08, 0x7F,// H
-0x00, 0x41, 0x7F, 0x41, 0x00,// I
-0x20, 0x40, 0x41, 0x3F, 0x01,// J
-0x7F, 0x08, 0x14, 0x22, 0x41,// K
-0x7F, 0x40, 0x40, 0x40, 0x40,// L
-0x7F, 0x02, 0x04, 0x02, 0x7F,// M
-0x7F, 0x04, 0x08, 0x10, 0x7F,// N
-0x3E, 0x41, 0x41, 0x41, 0x3E,// O
-0x7F, 0x09, 0x09, 0x09, 0x06,// P
-0x3E, 0x41, 0x51, 0x21, 0x5E,// Q
-0x7F, 0x09, 0x19, 0x29, 0x46,// R
-0x46, 0x49, 0x49, 0x49, 0x31,// S
-0x01, 0x01, 0x7F, 0x01, 0x01,// T
-0x3F, 0x40, 0x40, 0x40, 0x3F,// U
-0x1F, 0x20, 0x40, 0x20, 0x1F,// V
-0x7F, 0x20, 0x18, 0x20, 0x7F,// W
-0x63, 0x14, 0x08, 0x14, 0x63,// X
-0x03, 0x04, 0x78, 0x04, 0x03,// Y
-0x61, 0x51, 0x49, 0x45, 0x43,// Z
-0x00, 0x00, 0x7F, 0x41, 0x41,// [
-0x02, 0x04, 0x08, 0x10, 0x20,// "\"
-0x41, 0x41, 0x7F, 0x00, 0x00,// ]
-0x04, 0x02, 0x01, 0x02, 0x04,// ^
-0x40, 0x40, 0x40, 0x40, 0x40,// _
-0x00, 0x01, 0x02, 0x04, 0x00,// `
-0x20, 0x54, 0x54, 0x54, 0x78,// a
-0x7F, 0x48, 0x44, 0x44, 0x38,// b
-0x38, 0x44, 0x44, 0x44, 0x20,// c
-0x38, 0x44, 0x44, 0x48, 0x7F,// d
-0x38, 0x54, 0x54, 0x54, 0x18,// e
-0x08, 0x7E, 0x09, 0x01, 0x02,// f
-0x08, 0x14, 0x54, 0x54, 0x3C,// g
-0x7F, 0x08, 0x04, 0x04, 0x78,// h
-0x00, 0x44, 0x7D, 0x40, 0x00,// i
-0x20, 0x40, 0x44, 0x3D, 0x00,// j
-0x00, 0x7F, 0x10, 0x28, 0x44,// k
-0x00, 0x41, 0x7F, 0x40, 0x00,// l
-0x7C, 0x04, 0x18, 0x04, 0x78,// m
-0x7C, 0x08, 0x04, 0x04, 0x78,// n
-0x38, 0x44, 0x44, 0x44, 0x38,// o
-0x7C, 0x14, 0x14, 0x14, 0x08,// p
-0x08, 0x14, 0x14, 0x18, 0x7C,// q
-0x7C, 0x08, 0x04, 0x04, 0x08,// r
-0x48, 0x54, 0x54, 0x54, 0x20,// s
-0x04, 0x3F, 0x44, 0x40, 0x20,// t
-0x3C, 0x40, 0x40, 0x20, 0x7C,// u
-0x1C, 0x20, 0x40, 0x20, 0x1C,// v
-0x3C, 0x40, 0x30, 0x40, 0x3C,// w
-0x44, 0x28, 0x10, 0x28, 0x44,// x
-0x0C, 0x50, 0x50, 0x50, 0x3C,// y
-0x44, 0x64, 0x54, 0x4C, 0x44,// z
-0x00, 0x08, 0x36, 0x41, 0x00,// {
-0x00, 0x00, 0x7F, 0x00, 0x00,// |
-0x00, 0x41, 0x36, 0x08, 0x00,// }
-0x08, 0x08, 0x2A, 0x1C, 0x08,// ->
-0x08, 0x1C, 0x2A, 0x08, 0x08 // <-
-};
-
-
-void GLCD_Init(void);
-void GLCD_InitPorts(void);
-void GLCD_WriteCommand(uint8_t);
-void GLCD_WriteData(uint8_t);
-void GLCD_GoTo(uint8_t, uint8_t);
-void GLCD_WriteString(char *);
-void GLCD_SetPixel(uint8_t x, uint8_t y, bool color);
-void GLCD_ClearScreen(void);
-void GLCD_line_recursive(uint8_t x0,uint8_t y0, uint8_t x1,uint8_t y1);
-void GLCD_WriteChar(char charCode);
-uint8_t GLCD_ReadData();
-uint8_t GLCD_ReadStatus(void);
-//
-void GLCD_Rectangle(unsigned char x, unsigned char y, unsigned char b, unsigned char a);
-void GLCD_Circle(unsigned char cx, unsigned char cy ,unsigned char radius);
-void GLCD_Line(int X1, int Y1,int X2,int Y2);
-
-void GLCD_bmp(const unsigned char *bitmapa);
-void GLCD_Bitmap(char *, unsigned char, unsigned char, unsigned char, unsigned char);
-
-
-
-#endif /* SPLC501C_H_ */
+#endif /* __SPLC501C_H__ */

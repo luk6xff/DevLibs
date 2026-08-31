@@ -1,0 +1,30 @@
+{
+    "name": "BTM222",
+    "description": "BTM222 Bluetooth SPP module library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "BTM222",
+        "Bluetooth",
+        "SPP",
+        "AT Commands",
+        "UART"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BTM222"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/BTM222"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

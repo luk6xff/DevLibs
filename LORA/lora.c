@@ -385,6 +385,8 @@ int lora_peek(lora *const dev)
 //-----------------------------------------------------------------------------
 void lora_flush(lora *const dev)
 {
+    // Nothing to flush, the FIFO pointer is reset on every begin_packet()
+    (void)dev;
 }
 
 //-----------------------------------------------------------------------------
@@ -604,7 +606,14 @@ void lora_set_ldo_flag(lora *const dev)
     bool ldoOn = symbolDuration > 16;
 
     uint8_t config3 = lora_read_reg(dev, REG_MODEM_CONFIG_3);
-    bitWrite(config3, 3, ldoOn);
+    if (ldoOn)
+    {
+        config3 |= (1u << 3);
+    }
+    else
+    {
+        config3 &= (uint8_t)~(1u << 3);
+    }
     lora_write_reg(dev, REG_MODEM_CONFIG_3, config3);
 }
 

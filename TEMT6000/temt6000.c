@@ -47,7 +47,8 @@ static float compute_result_formula(const uint64_t raw_adc_result, const uint16_
 //------------------------------------------------------------------------------
 void temt6000_init(temt6000* const dev)
 {
-    // EMPTY
+    // Nothing to configure, the sensor is a plain analog output device
+    (void)dev;
 }
 
 //------------------------------------------------------------------------------

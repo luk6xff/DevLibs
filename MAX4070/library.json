@@ -1,0 +1,28 @@
+{
+    "name": "MAX4070",
+    "description": "MAX4070 bidirectional high-side current-sense amplifier library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "MAX4070",
+        "Current Sense",
+        "Amplifier"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MAX4070"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MAX4070"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

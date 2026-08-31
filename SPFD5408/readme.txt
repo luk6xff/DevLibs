@@ -1,1 +1,0 @@
-Library for SPFD5408 TFT LCD 2,4' display

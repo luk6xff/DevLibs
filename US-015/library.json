@@ -1,0 +1,29 @@
+{
+    "name": "US-015",
+    "description": "US-015 (HC-SR04 compatible) ultrasonic distance sensor library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "US-015",
+        "HC-SR04",
+        "Ultrasonic",
+        "Distance Sensor"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/US-015"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/US-015"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

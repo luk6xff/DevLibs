@@ -1,0 +1,29 @@
+{
+    "name": "MPU6050",
+    "description": "MPU6050 6-axis motion tracking device (gyroscope + accelerometer) library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "MPU6050",
+        "IMU",
+        "Gyroscope",
+        "Accelerometer"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MPU6050"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MPU6050"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

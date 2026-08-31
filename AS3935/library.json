@@ -1,0 +1,27 @@
+{
+    "name": "AS3935",
+    "description": "AS3935 Franklin lightning sensor library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "AS3935",
+        "Lightning Sensor"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/AS3935"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/AS3935"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

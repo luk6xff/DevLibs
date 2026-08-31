@@ -1,0 +1,28 @@
+{
+    "name": "DS1621",
+    "description": "DS1621 digital thermometer and thermostat library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "DS1621",
+        "Temperature Sensor",
+        "Thermostat"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/DS1621"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/DS1621"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

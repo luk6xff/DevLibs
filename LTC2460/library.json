@@ -1,0 +1,28 @@
+{
+    "name": "LTC2460",
+    "description": "LTC2460 ultra-tiny 16-bit delta-sigma ADC library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "LTC2460",
+        "ADC",
+        "SPI"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/LTC2460"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/LTC2460"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

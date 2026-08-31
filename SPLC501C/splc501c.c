@@ -1,371 +1,864 @@
-/*
- * splc501c.c
- *
- *  Created on: May 9, 2012
- *      Author: Lukasz USZKO
+/**
+ *  @brief:   SPLC501C 128x64 monochrome graphic LCD library
+ *  @author:  luk6xff
+ *  @email:   lukasz.uszko@gmail.com
+ *  @date:    2020-09-02
+ *  @license: MIT
  */
 
 #include "splc501c.h"
-#include "my_library/init_modules.h"
+#include <string.h>
 
-//-------------------------------------------------------------------------------------------------
-// TUTAJ inicjuje wszystkie porty
-//-------------------------------------------------------------------------------------------------
-void GLCD_InitPorts(void) {
-	volatile int i;
-	GPIO_InitTypeDef GPIO_InitStructure;
-	/*Tu nalezy umiescic konfiguracja  portow GPIO potrzebnych w programie*/
-	GPIO_InitStructure.GPIO_Pin = PIN_ALL_STER_PORT;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //wyjscie push-pull
-	GPIO_Init(PIN_PORT_STER, &GPIO_InitStructure);
-	GPIO_InitStructure.GPIO_Pin = PIN_ALL_DATA_PORT;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //wyjscie push-pull
-	GPIO_Init(PIN_PORT_DATA, &GPIO_InitStructure);
-	GPIO_SetBits(PIN_PORT_STER, PIN_RD | PIN_WR | PIN_A0 | PIN_RES | PIN_CS1);
-	GPIO_ResetBits(PIN_PORT_STER, PIN_RES);
-	for (i = 0; i < 1000; i++)
-		// petla opozniajaca
-		;
-	GPIO_SetBits(PIN_PORT_STER, PIN_RES); // to juz jest w inicjalizacji
+// Number of glyphs stored in the built-in font
+#define SPLC501C_FONT_CHARS (SPLC501C_FONT_LAST_CHAR - SPLC501C_FONT_FIRST_CHAR + 1)
 
-}
-//-------------------------------------------------------------------------------------------------
-// inicjacja wyswietlacza
-//-------------------------------------------------------------------------------------------------
+// Reset pulse and power-up timings taken from the datasheet
+#define SPLC501C_RESET_LOW_MS   10
+#define SPLC501C_RESET_HIGH_MS  10
+#define SPLC501C_POWER_UP_MS    50
 
-void GLCD_Init(void) {
-	volatile int i;
-	GLCD_InitPorts();
-
-	GLCD_WriteCommand(SPLC501C_ADC_NORMAL);
-	GLCD_WriteCommand(SPLC501C_COM63);
-
-	GLCD_WriteCommand(SPLC501C_BIAS_19);
-	GLCD_WriteCommand(SPLC501C_POWERON);
-	for (i = 0; i < 100; i++)
-		;
-	GLCD_WriteCommand(SPLC501C_VOLUME_MODE);
-	GLCD_WriteCommand(SPLC501C_VOLUME_SET | 20);
-	GLCD_WriteCommand(0xA4);
-	GLCD_WriteCommand(SPLC501C_DISPLAY_ON);
-	GLCD_WriteCommand(SPLC501C_DISPLAY_NORMAL);
-	GLCD_WriteCommand(SPLC501C_PAGE_ADDRESS | 0);
-	GLCD_WriteCommand(SPLC501C_COLUMN_ADDRESS_HI | 0);
-	GLCD_WriteCommand(SPLC501C_COLUMN_ADDRESS_LO | 0);
-	GLCD_WriteCommand(SPLC501C_START_LINE | 0);
-
-}
-//-------------------------------------------------------------------------------------------------
-//zapis danych do wyswietlacza
-//-------------------------------------------------------------------------------------------------
-
-void GLCD_WriteData(uint8_t dataToWrite) {
-	while (GLCD_ReadStatus() & 0x90)
-		; // sprawdzam flage zajetosci
-
-	PIN_PORT_DATA->CRL = GPIO_CRL_MODE0_0 | GPIO_CRL_MODE1_0 | GPIO_CRL_MODE2_0
-				| GPIO_CRL_MODE3_0 | GPIO_CRL_MODE4_0 | GPIO_CRL_MODE5_0
-				| GPIO_CRL_MODE6_0 | GPIO_CRL_MODE7_0; // output mode, push pull , max speed 10 MHz
-		;
-	GPIO_ResetBits(PIN_PORT_STER, PIN_A0 | PIN_WR | PIN_RD | PIN_CS1);
-	GPIO_SetBits(PIN_PORT_STER, PIN_A0 | PIN_RD);
-	GPIO_ResetBits(PIN_PORT_DATA, PIN_ALL_DATA_PORT);
-	GPIO_SetBits(PIN_PORT_DATA, dataToWrite);
-	GPIO_SetBits(PIN_PORT_STER, PIN_CS1 | PIN_WR); // ustawiam CS1 czyli zakoñczone zapisywanie /czytanie
-}
-//-------------------------------------------------------------------------------------------------
-//zapis komendy narazie bedzie dzia³a³ tylko gdy linie data wyswietlacza s¹ podpiête do portów 0d 0 ->do 7
-//-------------------------------------------------------------------------------------------------
-void GLCD_WriteCommand(uint8_t commandToWrite) {
-//while(GLCD_ReadStatus()&0x90); // sprawdzam flage zajetosci
-	GPIO_ResetBits(PIN_PORT_STER, PIN_A0 | PIN_WR | PIN_RD | PIN_CS1);
-	GPIO_SetBits(PIN_PORT_STER, PIN_RD);
-	GPIO_ResetBits(PIN_PORT_DATA, PIN_ALL_DATA_PORT);
-	GPIO_SetBits(PIN_PORT_DATA, commandToWrite);
-	GPIO_SetBits(PIN_PORT_STER, PIN_CS1); // ustawiam CS1 czyli zakoñczone zapisywanie /czytanie
-}
-//-------------------------------------------------------------------------------------------------
-//Odczyt zapisanych pikseli z wywietlacza
-//-------------------------------------------------------------------------------------------------
-
-uint8_t GLCD_ReadData() {
-	while (GLCD_ReadStatus() & 0x90)
-		// czytam flage zajetosci
-		;
-
-	uint8_t read_data = 0;
-	/*
-	 GPIO_InitTypeDef GPIO_InitStructure;
-
-	 GPIO_InitStructure.GPIO_Pin = PIN_ALL_DATA_PORT; //zmieniam porty na wejciowe
-	 GPIO_InitStructure.GPIO_Pin = GPIO_Speed_10MHz;
-	 GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD; //wejcie High impedance
-	 GPIO_Init(PIN_PORT_DATA, &GPIO_InitStructure);
-	 */
-/*
-	PIN_PORT_DATA->CRL &= ~(GPIO_CRL_MODE0_0 | GPIO_CRL_MODE1_0
-			| GPIO_CRL_MODE2_0 | GPIO_CRL_MODE3_0 | GPIO_CRL_MODE4_0
-			| GPIO_CRL_MODE5_0 | GPIO_CRL_MODE6_0 | GPIO_CRL_MODE7_0); ///input, pull down
-	PIN_PORT_DATA->CRL = GPIO_CRL_CNF0_1 | GPIO_CRL_CNF1_1 | GPIO_CRL_CNF2_1
-			| GPIO_CRL_CNF3_1 | GPIO_CRL_CNF4_1 | GPIO_CRL_CNF5_1
-			| GPIO_CRL_CNF6_1 | GPIO_CRL_CNF7_1; */
-	GPIO_ResetBits(PIN_PORT_STER, PIN_RD | PIN_CS1);
-	GPIO_SetBits(PIN_PORT_STER, PIN_RD | PIN_CS1);
-	GPIO_SetBits(PIN_PORT_STER, PIN_A0 | PIN_WR); //// tu na tym WR sie zastanowic
-	GPIO_ResetBits(PIN_PORT_STER, PIN_RD | PIN_CS1);
-	read_data |= (PIN_PORT_DATA->IDR & PIN_ALL_DATA_PORT); // czytam stan wejsæ
-
-	/*
-	 GPIO_SetBits(PIN_PORT_STER, PIN_CS1 | PIN_RD);
-	 GPIO_InitStructure.GPIO_Pin = PIN_ALL_DATA_PORT;
-	 GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	 GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //ustawiam wyjscie  push pullup
-	 GPIO_Init(PIN_PORT_DATA, &GPIO_InitStructure);
-	 */PIN_PORT_DATA->CRL = GPIO_CRL_MODE0_0 | GPIO_CRL_MODE1_0 | GPIO_CRL_MODE2_0
-			| GPIO_CRL_MODE3_0 | GPIO_CRL_MODE4_0 | GPIO_CRL_MODE5_0
-			| GPIO_CRL_MODE6_0 | GPIO_CRL_MODE7_0; // output mode, push pull , max speed 10 MHz
-	;
-	return read_data;
-}
-
-//-------------------------------------------------------------------------------------------------
-//
-//-------------------------------------------------------------------------------------------------
-uint8_t GLCD_ReadStatus(void) {
-	/*	GPIO_InitTypeDef GPIO_InitStructure;
-	 GPIO_InitStructure.GPIO_Pin = PIN_ALL_DATA_PORT;
-	 GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-	 GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD; //wejcie High impedance
-	 GPIO_Init(PIN_PORT_DATA, &GPIO_InitStructure);*/
-	PIN_PORT_DATA->CRL &= ~(GPIO_CRL_MODE0_0 | GPIO_CRL_MODE1_0
-			| GPIO_CRL_MODE2_0 | GPIO_CRL_MODE3_0 | GPIO_CRL_MODE4_0
-			| GPIO_CRL_MODE5_0 | GPIO_CRL_MODE6_0 | GPIO_CRL_MODE7_0); ///input, pull down
-	PIN_PORT_DATA->CRL = GPIO_CRL_CNF0_1 | GPIO_CRL_CNF1_1 | GPIO_CRL_CNF2_1
-			| GPIO_CRL_CNF3_1 | GPIO_CRL_CNF4_1 | GPIO_CRL_CNF5_1
-			| GPIO_CRL_CNF6_1 | GPIO_CRL_CNF7_1;
-	GPIO_ResetBits(PIN_PORT_STER, PIN_A0 | PIN_WR | PIN_RD | PIN_CS1);
-	GPIO_SetBits(PIN_PORT_STER, PIN_WR);
-	uint8_t read_status = 0;
-	read_status = (PIN_PORT_DATA->IDR & PIN_ALL_DATA_PORT);
-	GPIO_SetBits(PIN_PORT_STER, PIN_CS1 | PIN_RD | PIN_A0);
-
-	return read_status;
-}
-//-----------------------------------------------------------------------------------------------------------------------------
-//ustawienie kursora
-//-----------------------------------------------------------------------------------------------------------------------------
-void GLCD_GoTo(uint8_t x, uint8_t y) {
-	if (y > PIXELS_PER_PAGE - 1) {
-		y = PIXELS_PER_PAGE - 1;
-	}
-	if (x > SCREEN_WIDTH - 1) {
-		x = SCREEN_WIDTH - 1;
-	}
-	GLCD_WriteCommand(SPLC501C_COLUMN_ADDRESS_HI | ((x >> 4) & 0x0F));
-	GLCD_WriteCommand(SPLC501C_COLUMN_ADDRESS_LO | (x & 0x0F));
-	GLCD_WriteCommand(SPLC501C_PAGE_ADDRESS | y);
-
-}
-//-------------------------------------------------------------------------------------------------
-// funkcja rysuj¹ca pixel zakres wejciowych argumentów to x=64 ; y<132
-//-------------------------------------------------------------------------------------------------
-void GLCD_SetPixel(uint8_t x, uint8_t y, bool color) {
-	uint8_t z = 0;
-	GLCD_GoTo(x, y / 8);
-	z = GLCD_ReadData(); // odczytuje poprzedni stan zapalonych bitów coby se nie nadpisywaæ na wyswietlaczu // rzutuje na 1 bajt
-	if (color) {
-		z |= (1 << (y % 8));
-	} else {
-		z &= ~(1 << (y % 8));
-	}
-	GLCD_GoTo(x, y / 8);
-	GLCD_WriteData(z);
-}
-//-------------------------------------------------------------------------------------------------
-//czyszczenie wyswietlacza
-//-------------------------------------------------------------------------------------------------
-void GLCD_ClearScreen(void) {
-	uint8_t x = 0, y = 0;
-	for (y = 0; y < (SCREEN_HEIGHT / PIXELS_PER_PAGE); y++) {
-		GLCD_GoTo(0, y);
-		for (x = 0; x < SCREEN_WIDTH; x++) {
-			GLCD_WriteData(0); // ca³y bajt na pojedyñczej stronie se zerami wype³niam
-		}
-	}
-}
-//-------------------------------------------------------------------------------------------------
-//funkcja wywietlaj¹ca znak z tablicy zapisanej we flashu
-//-------------------------------------------------------------------------------------------------
-void GLCD_WriteChar(char charCode) {
-	unsigned char fontCollumn;
-	for (fontCollumn = 0; fontCollumn < FONT_WIDTH; fontCollumn++)
-		GLCD_WriteData(
-				font5x7[((charCode - FONT_OFFSET) * FONT_WIDTH) + fontCollumn]);
-	GLCD_WriteData(0); // coby by³ odstêp  miêdzy literami
-}
-//-------------------------------------------------------------------------------------------------
-// funkcja wysy³aj¹ca string na ekran
-//-------------------------------------------------------------------------------------------------
-void GLCD_WriteString(char * string) {
-	while (*string) {
-		GLCD_WriteChar(*string++);
-	}
-}
-
-//-------------------------------------------------------------------------------------------------
-//FUNKCJE RYSUJ¥CE BITMAPY- STOSUJE DRUG¥
-//-------------------------------------------------------------------------------------------------
-/*
-void GLCD_Bitmap(char * bitmap, unsigned char left, unsigned char top,
-		unsigned char width, unsigned char height) {
-	unsigned char pageIndex, columnIndex;
-	for (pageIndex = 0; pageIndex < height / 8; pageIndex++) {
-		GLCD_GoTo(left, top + pageIndex);
-		for (columnIndex = 0; columnIndex < width; columnIndex++)
-			GLCD_WriteData(*(bitmap++));
-	}
-}
-*/
-void GLCD_bmp(const unsigned char *bitmapa) {
-	unsigned char i, j;
-	for (j = 0; j < 8; j++) {
-		GLCD_WriteCommand(0x00);
-		GLCD_WriteCommand(0x10);
-		GLCD_WriteCommand(0xb0 + j); // wybór strony <0,8>
-		for (i = 0; i < 132; i++) // wyswietla w poziomie
-			GLCD_WriteData((bitmapa[i + j * 132]));
-	}
-}
-
-//-------------------------------------------------------------------------------------------------
-//
-//-------------------------------------------------------------------------------------------------
-/*
- void GLCD_line_recursive(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
- int x, y;
- if (x0 == x1 && y0 == y1) {
- return;
- }
-
- x = (x0 + x1) >> 2;
- y = (y0 + y1) >> 2;
-
- GLCD_SetPixel(x, y,true);
- GLCD_line_recursive(x0, y0, x, y);
- GLCD_line_recursive(x1, y1, x, y);
- }
+/**
+ * 5x7 font, ASCII 32..127. One glyph is five column bytes, the least
+ * significant bit of a byte is the topmost pixel of the column.
  */
+static const uint8_t splc501c_font5x7[SPLC501C_FONT_CHARS * SPLC501C_FONT_WIDTH] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x00, // (space)
+    0x00, 0x00, 0x5F, 0x00, 0x00, // !
+    0x00, 0x07, 0x00, 0x07, 0x00, // "
+    0x14, 0x7F, 0x14, 0x7F, 0x14, // #
+    0x24, 0x2A, 0x7F, 0x2A, 0x12, // $
+    0x23, 0x13, 0x08, 0x64, 0x62, // %
+    0x36, 0x49, 0x55, 0x22, 0x50, // &
+    0x00, 0x05, 0x03, 0x00, 0x00, // '
+    0x00, 0x1C, 0x22, 0x41, 0x00, // (
+    0x00, 0x41, 0x22, 0x1C, 0x00, // )
+    0x08, 0x2A, 0x1C, 0x2A, 0x08, // *
+    0x08, 0x08, 0x3E, 0x08, 0x08, // +
+    0x00, 0x50, 0x30, 0x00, 0x00, // ,
+    0x08, 0x08, 0x08, 0x08, 0x08, // -
+    0x00, 0x30, 0x30, 0x00, 0x00, // .
+    0x20, 0x10, 0x08, 0x04, 0x02, // /
+    0x3E, 0x51, 0x49, 0x45, 0x3E, // 0
+    0x00, 0x42, 0x7F, 0x40, 0x00, // 1
+    0x42, 0x61, 0x51, 0x49, 0x46, // 2
+    0x21, 0x41, 0x45, 0x4B, 0x31, // 3
+    0x18, 0x14, 0x12, 0x7F, 0x10, // 4
+    0x27, 0x45, 0x45, 0x45, 0x39, // 5
+    0x3C, 0x4A, 0x49, 0x49, 0x30, // 6
+    0x01, 0x71, 0x09, 0x05, 0x03, // 7
+    0x36, 0x49, 0x49, 0x49, 0x36, // 8
+    0x06, 0x49, 0x49, 0x29, 0x1E, // 9
+    0x00, 0x36, 0x36, 0x00, 0x00, // :
+    0x00, 0x56, 0x36, 0x00, 0x00, // ;
+    0x00, 0x08, 0x14, 0x22, 0x41, // <
+    0x14, 0x14, 0x14, 0x14, 0x14, // =
+    0x41, 0x22, 0x14, 0x08, 0x00, // >
+    0x02, 0x01, 0x51, 0x09, 0x06, // ?
+    0x32, 0x49, 0x79, 0x41, 0x3E, // @
+    0x7E, 0x11, 0x11, 0x11, 0x7E, // A
+    0x7F, 0x49, 0x49, 0x49, 0x36, // B
+    0x3E, 0x41, 0x41, 0x41, 0x22, // C
+    0x7F, 0x41, 0x41, 0x22, 0x1C, // D
+    0x7F, 0x49, 0x49, 0x49, 0x41, // E
+    0x7F, 0x09, 0x09, 0x01, 0x01, // F
+    0x3E, 0x41, 0x41, 0x51, 0x32, // G
+    0x7F, 0x08, 0x08, 0x08, 0x7F, // H
+    0x00, 0x41, 0x7F, 0x41, 0x00, // I
+    0x20, 0x40, 0x41, 0x3F, 0x01, // J
+    0x7F, 0x08, 0x14, 0x22, 0x41, // K
+    0x7F, 0x40, 0x40, 0x40, 0x40, // L
+    0x7F, 0x02, 0x04, 0x02, 0x7F, // M
+    0x7F, 0x04, 0x08, 0x10, 0x7F, // N
+    0x3E, 0x41, 0x41, 0x41, 0x3E, // O
+    0x7F, 0x09, 0x09, 0x09, 0x06, // P
+    0x3E, 0x41, 0x51, 0x21, 0x5E, // Q
+    0x7F, 0x09, 0x19, 0x29, 0x46, // R
+    0x46, 0x49, 0x49, 0x49, 0x31, // S
+    0x01, 0x01, 0x7F, 0x01, 0x01, // T
+    0x3F, 0x40, 0x40, 0x40, 0x3F, // U
+    0x1F, 0x20, 0x40, 0x20, 0x1F, // V
+    0x7F, 0x20, 0x18, 0x20, 0x7F, // W
+    0x63, 0x14, 0x08, 0x14, 0x63, // X
+    0x03, 0x04, 0x78, 0x04, 0x03, // Y
+    0x61, 0x51, 0x49, 0x45, 0x43, // Z
+    0x00, 0x00, 0x7F, 0x41, 0x41, // [
+    0x02, 0x04, 0x08, 0x10, 0x20, // backslash
+    0x41, 0x41, 0x7F, 0x00, 0x00, // ]
+    0x04, 0x02, 0x01, 0x02, 0x04, // ^
+    0x40, 0x40, 0x40, 0x40, 0x40, // _
+    0x00, 0x01, 0x02, 0x04, 0x00, // `
+    0x20, 0x54, 0x54, 0x54, 0x78, // a
+    0x7F, 0x48, 0x44, 0x44, 0x38, // b
+    0x38, 0x44, 0x44, 0x44, 0x20, // c
+    0x38, 0x44, 0x44, 0x48, 0x7F, // d
+    0x38, 0x54, 0x54, 0x54, 0x18, // e
+    0x08, 0x7E, 0x09, 0x01, 0x02, // f
+    0x08, 0x14, 0x54, 0x54, 0x3C, // g
+    0x7F, 0x08, 0x04, 0x04, 0x78, // h
+    0x00, 0x44, 0x7D, 0x40, 0x00, // i
+    0x20, 0x40, 0x44, 0x3D, 0x00, // j
+    0x00, 0x7F, 0x10, 0x28, 0x44, // k
+    0x00, 0x41, 0x7F, 0x40, 0x00, // l
+    0x7C, 0x04, 0x18, 0x04, 0x78, // m
+    0x7C, 0x08, 0x04, 0x04, 0x78, // n
+    0x38, 0x44, 0x44, 0x44, 0x38, // o
+    0x7C, 0x14, 0x14, 0x14, 0x08, // p
+    0x08, 0x14, 0x14, 0x18, 0x7C, // q
+    0x7C, 0x08, 0x04, 0x04, 0x08, // r
+    0x48, 0x54, 0x54, 0x54, 0x20, // s
+    0x04, 0x3F, 0x44, 0x40, 0x20, // t
+    0x3C, 0x40, 0x40, 0x20, 0x7C, // u
+    0x1C, 0x20, 0x40, 0x20, 0x1C, // v
+    0x3C, 0x40, 0x30, 0x40, 0x3C, // w
+    0x44, 0x28, 0x10, 0x28, 0x44, // x
+    0x0C, 0x50, 0x50, 0x50, 0x3C, // y
+    0x44, 0x64, 0x54, 0x4C, 0x44, // z
+    0x00, 0x08, 0x36, 0x41, 0x00, // {
+    0x00, 0x00, 0x7F, 0x00, 0x00, // |
+    0x00, 0x41, 0x36, 0x08, 0x00, // }
+    0x08, 0x08, 0x2A, 0x1C, 0x08, // right arrow
+    0x08, 0x1C, 0x2A, 0x08, 0x08, // left arrow
+};
 
-//-------------------------------------------------------------------------------------------------
-//
-//-------------------------------------------------------------------------------------------------
-////to NIE MOJE FUNKCJE DO sprawdzenia
-void GLCD_Rectangle(unsigned char x, unsigned char y, unsigned char b,
-		unsigned char a) {
-	unsigned char j; // zmienna pomocnicza
-	// rysowanie linii pionowych (boki)
-	for (j = 0; j < a; j++) {
-		GLCD_SetPixel(x, y + j, true);
-		GLCD_SetPixel(x + b - 1, y + j, true);
-	}
-	// rysowanie linii poziomych (podstawy)
-	for (j = 0; j < b; j++) {
-		GLCD_SetPixel(x + j, y, true);
-		GLCD_SetPixel(x + j, y + a - 1, true);
-	}
+//-----------------------------------------------------------------------------
+static bool splc501c_write_cmd(const splc501c* const dev, uint8_t cmd)
+{
+    splc501c_set_pin(dev, SPLC501C_PIN_A0, false);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, false);
+    const bool ok = splc501c_write_bytes(dev, &cmd, 1);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, true);
+    return ok;
 }
 
-void GLCD_Circle(unsigned char cx, unsigned char cy, unsigned char radius) {
-	int x, y, xchange, ychange, radiusError;
-	x = radius;
-	y = 0;
-	xchange = 1 - 2 * radius;
-	ychange = 1;
-	radiusError = 0;
-	while (x >= y) {
-		GLCD_SetPixel(cx + x, cy + y, true);
-		GLCD_SetPixel(cx - x, cy + y, true);
-		GLCD_SetPixel(cx - x, cy - y, true);
-		GLCD_SetPixel(cx + x, cy - y, true);
-		GLCD_SetPixel(cx + y, cy + x, true);
-		GLCD_SetPixel(cx - y, cy + x, true);
-		GLCD_SetPixel(cx - y, cy - x, true);
-		GLCD_SetPixel(cx + y, cy - x, true);
-		y++;
-		radiusError += ychange;
-		ychange += 2;
-		if (2 * radiusError + xchange > 0) {
-			x--;
-			radiusError += xchange;
-			xchange += 2;
-		}
-	}
+//-----------------------------------------------------------------------------
+static bool splc501c_write_cmds(const splc501c* const dev, const uint8_t* cmds,
+                                size_t len)
+{
+    splc501c_set_pin(dev, SPLC501C_PIN_A0, false);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, false);
+    const bool ok = splc501c_write_bytes(dev, cmds, len);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, true);
+    return ok;
 }
 
-void GLCD_Line(int X1, int Y1, int X2, int Y2) {
-	int CurrentX, CurrentY, Xinc, Yinc, Dx, Dy, TwoDx, TwoDy,
-			TwoDxAccumulatedError, TwoDyAccumulatedError;
-
-	Dx = (X2 - X1); // obliczenie skladowej poziomej
-	Dy = (Y2 - Y1); // obliczenie sladowej pionowej
-
-	TwoDx = Dx + Dx; // podwojona skladowa pozioma
-	TwoDy = Dy + Dy; // podwojona skladowa pionowa
-
-	CurrentX = X1; // zaczynamy od X1
-	CurrentY = Y1; // oraz Y1
-
-	Xinc = 1; // ustalamy krok zwekszania pozycji w poziomie
-	Yinc = 1; // ustalamy krok zwiekszania pozycji w pionie
-
-	if (Dx < 0) // jesli skladowa pozioma jest ujemna
-			{
-		Xinc = -1; // to bedziemy sie "cofc" (krok ujemny)
-		Dx = -Dx; // zmieniamy znak skladowej na dodatni
-		TwoDx = -TwoDx; // jak równiez podwojonej skladowej
-	}
-
-	if (Dy < 0) // jezli skladowa pionowa jest ujemna
-			{
-		Yinc = -1; // to bedziemy sie "cofc" (krok ujemny)
-		Dy = -Dy; // zmieniamy znak skladowej na dodatki
-		TwoDy = -TwoDy; // jak rowniez podwojonej skladowej
-	}
-
-	GLCD_SetPixel(X1, Y1, true); // stawiamy pierwszy krok (zapalamy pierwszy piksel)
-
-	if ((Dx != 0) || (Dy != 0)) // sprawdzamy czy linia sklada sie z wiecej niz jednego punktu
-			{
-		// sprawdzamy czy skladowa pionowa jest mniejsza lub rowna skladowej poziomej
-		if (Dy <= Dx) // jezli tak, to idziemy "po iksach"
-				{
-			TwoDxAccumulatedError = 0; // zerujemy zmienna
-			do // ruszamy w droge
-			{
-				CurrentX += Xinc; // do aktualnej pozycji dodajemy krok
-				TwoDxAccumulatedError += TwoDy; // a tu dodajemy podwojona skaadowa pionowa
-				if (TwoDxAccumulatedError > Dx) // jezli TwoDxAccumulatedError jest wiekszy od Dx
-						{
-					CurrentY += Yinc; // zwiekszamy aktualna pozycje w pionie
-					TwoDxAccumulatedError -= TwoDx; // i odejmujemy TwoDx
-				}
-				GLCD_SetPixel(CurrentX, CurrentY, true); // stawiamy nastepny krok (zapalamy piksel)
-			} while (CurrentX != X2); // idziemy tak deugo, az osiagniemy punkt docelowy
-		} else // w przeciwnym razie idziemy "po igrekach"
-		{
-			TwoDyAccumulatedError = 0;
-			do {
-				CurrentY += Yinc;
-				TwoDyAccumulatedError += TwoDx;
-				if (TwoDyAccumulatedError > Dy) {
-					CurrentX += Xinc;
-					TwoDyAccumulatedError -= TwoDy;
-				}
-				GLCD_SetPixel(CurrentX, CurrentY, true);
-			} while (CurrentY != Y2);
-		}
-	}
+//-----------------------------------------------------------------------------
+static bool splc501c_write_data(const splc501c* const dev, const uint8_t* buf,
+                                size_t len)
+{
+    splc501c_set_pin(dev, SPLC501C_PIN_A0, true);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, false);
+    const bool ok = splc501c_write_bytes(dev, buf, len);
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, true);
+    return ok;
 }
 
+//-----------------------------------------------------------------------------
+/**
+ * With the segment driver reversed the visible window moves to the far end of
+ * the 132 column wide controller RAM, so the first column has to be skewed.
+ */
+static uint8_t splc501c_column_offset(const splc501c* const dev)
+{
+    return (dev->orientation == SPLC501C_ORIENTATION_ROTATED_180)
+               ? (uint8_t)SPLC501C_RAM_COLUMN_SKEW
+               : (uint8_t)0;
+}
+
+//-----------------------------------------------------------------------------
+static bool splc501c_goto_page(const splc501c* const dev, uint8_t page)
+{
+    const uint8_t column = splc501c_column_offset(dev);
+    const uint8_t cmds[3] = {
+        (uint8_t)(SPLC501C_CMD_PAGE_ADDRESS | (page & 0x0Fu)),
+        (uint8_t)(SPLC501C_CMD_COLUMN_ADDRESS_HI | ((column >> 4) & 0x0Fu)),
+        (uint8_t)(SPLC501C_CMD_COLUMN_ADDRESS_LO | (column & 0x0Fu)),
+    };
+    return splc501c_write_cmds(dev, cmds, sizeof(cmds));
+}
+
+//-----------------------------------------------------------------------------
+static bool splc501c_apply_orientation(const splc501c* const dev)
+{
+    const bool rotated = (dev->orientation == SPLC501C_ORIENTATION_ROTATED_180);
+    const uint8_t cmds[2] = {
+        rotated ? (uint8_t)SPLC501C_CMD_ADC_REVERSE
+                : (uint8_t)SPLC501C_CMD_ADC_NORMAL,
+        rotated ? (uint8_t)SPLC501C_CMD_COM_NORMAL
+                : (uint8_t)SPLC501C_CMD_COM_REVERSE,
+    };
+    return splc501c_write_cmds(dev, cmds, sizeof(cmds));
+}
+
+//-----------------------------------------------------------------------------
+static bool splc501c_startup_sequence(splc501c* const dev)
+{
+    if (!splc501c_apply_orientation(dev))
+    {
+        return false;
+    }
+
+    const uint8_t power[3] = {
+        (uint8_t)SPLC501C_CMD_BIAS_1_9,
+        (uint8_t)(SPLC501C_CMD_VOLTAGE_RATIO | SPLC501C_VOLTAGE_RATIO_DEFAULT),
+        (uint8_t)SPLC501C_CMD_POWER_ON,
+    };
+    if (!splc501c_write_cmds(dev, power, sizeof(power)))
+    {
+        return false;
+    }
+    splc501c_delay_ms(SPLC501C_POWER_UP_MS);
+
+    if (!splc501c_set_contrast(dev, dev->contrast))
+    {
+        return false;
+    }
+
+    const uint8_t display[3] = {
+        (uint8_t)SPLC501C_CMD_DISPLAY_ALL_OFF,
+        (uint8_t)(dev->inverted ? SPLC501C_CMD_DISPLAY_REVERSE
+                                : SPLC501C_CMD_DISPLAY_NORMAL),
+        (uint8_t)(SPLC501C_CMD_START_LINE | 0u),
+    };
+    if (!splc501c_write_cmds(dev, display, sizeof(display)))
+    {
+        return false;
+    }
+
+    return splc501c_set_display_on(dev, true);
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_init(splc501c* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    memset(dev->buf, 0, sizeof(dev->buf));
+    dev->cursor_x = 0;
+    dev->cursor_y = 0;
+    dev->text_color = SPLC501C_COLOR_ON;
+    dev->contrast = SPLC501C_CONTRAST_DEFAULT;
+    dev->inverted = false;
+    dev->display_on = false;
+    if (dev->orientation != SPLC501C_ORIENTATION_ROTATED_180)
+    {
+        dev->orientation = SPLC501C_ORIENTATION_NORMAL;
+    }
+
+    return splc501c_reset(dev);
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_reset(splc501c* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    splc501c_set_pin(dev, SPLC501C_PIN_CS, true);
+    splc501c_set_pin(dev, SPLC501C_PIN_A0, false);
+    splc501c_set_pin(dev, SPLC501C_PIN_RESET, false);
+    splc501c_delay_ms(SPLC501C_RESET_LOW_MS);
+    splc501c_set_pin(dev, SPLC501C_PIN_RESET, true);
+    splc501c_delay_ms(SPLC501C_RESET_HIGH_MS);
+
+    if (!splc501c_startup_sequence(dev))
+    {
+        return false;
+    }
+
+    return splc501c_update(dev);
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_display_on(splc501c* const dev, bool on)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    const uint8_t cmd = on ? (uint8_t)SPLC501C_CMD_DISPLAY_ON
+                           : (uint8_t)SPLC501C_CMD_DISPLAY_OFF;
+    if (!splc501c_write_cmd(dev, cmd))
+    {
+        return false;
+    }
+
+    dev->display_on = on;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_contrast(splc501c* const dev, uint8_t contrast)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    if (contrast > SPLC501C_CONTRAST_MAX)
+    {
+        contrast = (uint8_t)SPLC501C_CONTRAST_MAX;
+    }
+
+    const uint8_t cmds[2] = {(uint8_t)SPLC501C_CMD_VOLUME_MODE, contrast};
+    if (!splc501c_write_cmds(dev, cmds, sizeof(cmds)))
+    {
+        return false;
+    }
+
+    dev->contrast = contrast;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_inverted(splc501c* const dev, bool inverted)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    const uint8_t cmd = inverted ? (uint8_t)SPLC501C_CMD_DISPLAY_REVERSE
+                                 : (uint8_t)SPLC501C_CMD_DISPLAY_NORMAL;
+    if (!splc501c_write_cmd(dev, cmd))
+    {
+        return false;
+    }
+
+    dev->inverted = inverted;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_orientation(splc501c* const dev,
+                              splc501c_orientation orientation)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    dev->orientation = orientation;
+    if (!splc501c_apply_orientation(dev))
+    {
+        return false;
+    }
+
+    return splc501c_update(dev);
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_update(splc501c* const dev)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    for (uint8_t page = 0; page < (uint8_t)SPLC501C_PAGES; page++)
+    {
+        if (!splc501c_goto_page(dev, page))
+        {
+            return false;
+        }
+        if (!splc501c_write_data(dev, &dev->buf[(size_t)page * SPLC501C_WIDTH],
+                                 (size_t)SPLC501C_WIDTH))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_clear(splc501c* const dev, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    memset(dev->buf, (color == SPLC501C_COLOR_ON) ? 0xFF : 0x00,
+           sizeof(dev->buf));
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_pixel(splc501c* const dev, int16_t x, int16_t y,
+                         splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (x < 0 || x >= SPLC501C_WIDTH || y < 0 || y >= SPLC501C_HEIGHT)
+    {
+        return false;
+    }
+
+    const size_t idx = ((size_t)(y / SPLC501C_PIXELS_PER_PAGE) * SPLC501C_WIDTH)
+                       + (size_t)x;
+    const uint8_t mask = (uint8_t)(1u << ((unsigned)y % SPLC501C_PIXELS_PER_PAGE));
+
+    switch (color)
+    {
+        case SPLC501C_COLOR_ON:
+            dev->buf[idx] |= mask;
+            break;
+        case SPLC501C_COLOR_INVERSE:
+            dev->buf[idx] ^= mask;
+            break;
+        case SPLC501C_COLOR_OFF:
+        default:
+            dev->buf[idx] &= (uint8_t)~mask;
+            break;
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_get_pixel(const splc501c* const dev, int16_t x, int16_t y)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (x < 0 || x >= SPLC501C_WIDTH || y < 0 || y >= SPLC501C_HEIGHT)
+    {
+        return false;
+    }
+
+    const size_t idx = ((size_t)(y / SPLC501C_PIXELS_PER_PAGE) * SPLC501C_WIDTH)
+                       + (size_t)x;
+    const uint8_t mask = (uint8_t)(1u << ((unsigned)y % SPLC501C_PIXELS_PER_PAGE));
+    return (dev->buf[idx] & mask) != 0u;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_hline(splc501c* const dev, int16_t x, int16_t y,
+                         int16_t len, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    int32_t x0 = x;
+    int32_t count = len;
+    if (count < 0)
+    {
+        count = -count;
+        x0 -= count - 1;
+    }
+    if (count == 0 || y < 0 || y >= SPLC501C_HEIGHT)
+    {
+        return true;
+    }
+
+    int32_t x1 = x0 + count - 1;
+    if (x1 < 0 || x0 >= SPLC501C_WIDTH)
+    {
+        return true;
+    }
+    if (x0 < 0)
+    {
+        x0 = 0;
+    }
+    if (x1 > (SPLC501C_WIDTH - 1))
+    {
+        x1 = SPLC501C_WIDTH - 1;
+    }
+
+    for (int32_t i = x0; i <= x1; i++)
+    {
+        (void)splc501c_draw_pixel(dev, (int16_t)i, y, color);
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_vline(splc501c* const dev, int16_t x, int16_t y,
+                         int16_t len, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    int32_t y0 = y;
+    int32_t count = len;
+    if (count < 0)
+    {
+        count = -count;
+        y0 -= count - 1;
+    }
+    if (count == 0 || x < 0 || x >= SPLC501C_WIDTH)
+    {
+        return true;
+    }
+
+    int32_t y1 = y0 + count - 1;
+    if (y1 < 0 || y0 >= SPLC501C_HEIGHT)
+    {
+        return true;
+    }
+    if (y0 < 0)
+    {
+        y0 = 0;
+    }
+    if (y1 > (SPLC501C_HEIGHT - 1))
+    {
+        y1 = SPLC501C_HEIGHT - 1;
+    }
+
+    for (int32_t i = y0; i <= y1; i++)
+    {
+        (void)splc501c_draw_pixel(dev, x, (int16_t)i, color);
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_line(splc501c* const dev, int16_t x0, int16_t y0,
+                        int16_t x1, int16_t y1, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    if (y0 == y1)
+    {
+        const int16_t left = (x0 < x1) ? x0 : x1;
+        const int16_t len = (int16_t)(((x0 < x1) ? (x1 - x0) : (x0 - x1)) + 1);
+        return splc501c_draw_hline(dev, left, y0, len, color);
+    }
+    if (x0 == x1)
+    {
+        const int16_t top = (y0 < y1) ? y0 : y1;
+        const int16_t len = (int16_t)(((y0 < y1) ? (y1 - y0) : (y0 - y1)) + 1);
+        return splc501c_draw_vline(dev, x0, top, len, color);
+    }
+
+    // Plain Bresenham, out of range points are dropped by splc501c_draw_pixel()
+    int32_t cx = x0;
+    int32_t cy = y0;
+    const int32_t dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+    const int32_t dy = (y1 > y0) ? (y0 - y1) : (y1 - y0); // negative
+    const int32_t sx = (x0 < x1) ? 1 : -1;
+    const int32_t sy = (y0 < y1) ? 1 : -1;
+    int32_t err = dx + dy;
+
+    for (;;)
+    {
+        (void)splc501c_draw_pixel(dev, (int16_t)cx, (int16_t)cy, color);
+        if (cx == x1 && cy == y1)
+        {
+            break;
+        }
+        const int32_t err2 = 2 * err;
+        if (err2 >= dy)
+        {
+            err += dy;
+            cx += sx;
+        }
+        if (err2 <= dx)
+        {
+            err += dx;
+            cy += sy;
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_rect(splc501c* const dev, int16_t x, int16_t y,
+                        int16_t width, int16_t height, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (width <= 0 || height <= 0)
+    {
+        return true;
+    }
+
+    const int16_t right = (int16_t)(x + width - 1);
+    const int16_t bottom = (int16_t)(y + height - 1);
+
+    (void)splc501c_draw_hline(dev, x, y, width, color);
+    (void)splc501c_draw_hline(dev, x, bottom, width, color);
+    (void)splc501c_draw_vline(dev, x, y, height, color);
+    (void)splc501c_draw_vline(dev, right, y, height, color);
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_fill_rect(splc501c* const dev, int16_t x, int16_t y,
+                        int16_t width, int16_t height, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (width <= 0 || height <= 0)
+    {
+        return true;
+    }
+
+    for (int32_t row = 0; row < height; row++)
+    {
+        (void)splc501c_draw_hline(dev, x, (int16_t)(y + row), width, color);
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_circle(splc501c* const dev, int16_t cx, int16_t cy,
+                          int16_t radius, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (radius < 0)
+    {
+        return true;
+    }
+
+    int32_t x = radius;
+    int32_t y = 0;
+    int32_t err = 1 - radius;
+
+    while (x >= y)
+    {
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx + x), (int16_t)(cy + y), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx - x), (int16_t)(cy + y), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx + x), (int16_t)(cy - y), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx - x), (int16_t)(cy - y), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx + y), (int16_t)(cy + x), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx - y), (int16_t)(cy + x), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx + y), (int16_t)(cy - x), color);
+        (void)splc501c_draw_pixel(dev, (int16_t)(cx - y), (int16_t)(cy - x), color);
+
+        y++;
+        if (err < 0)
+        {
+            err += (2 * y) + 1;
+        }
+        else
+        {
+            x--;
+            err += (2 * (y - x)) + 1;
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_fill_circle(splc501c* const dev, int16_t cx, int16_t cy,
+                          int16_t radius, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+    if (radius < 0)
+    {
+        return true;
+    }
+
+    // One span per line, so SPLC501C_COLOR_INVERSE cannot cancel itself out
+    const int32_t r2 = (int32_t)radius * (int32_t)radius;
+    for (int32_t dy = -radius; dy <= radius; dy++)
+    {
+        int32_t dx = 0;
+        while ((((dx + 1) * (dx + 1)) + (dy * dy)) <= r2)
+        {
+            dx++;
+        }
+        (void)splc501c_draw_hline(dev, (int16_t)(cx - dx), (int16_t)(cy + dy),
+                                  (int16_t)((2 * dx) + 1), color);
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_char(splc501c* const dev, char c, int16_t x, int16_t y,
+                        splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    // The font only holds ASCII 32..127, everything else becomes a space
+    unsigned code = (unsigned)(unsigned char)c;
+    if (code < SPLC501C_FONT_FIRST_CHAR || code > SPLC501C_FONT_LAST_CHAR)
+    {
+        code = SPLC501C_FONT_FIRST_CHAR;
+    }
+
+    const size_t glyph = (size_t)(code - SPLC501C_FONT_FIRST_CHAR)
+                         * SPLC501C_FONT_WIDTH;
+
+    // Only the lit pixels are touched, the background stays as it is
+    for (int32_t col = 0; col < SPLC501C_FONT_WIDTH; col++)
+    {
+        const uint8_t bits = splc501c_font5x7[glyph + (size_t)col];
+        for (int32_t row = 0; row < SPLC501C_FONT_HEIGHT; row++)
+        {
+            if (((bits >> (unsigned)row) & 0x01u) != 0u)
+            {
+                (void)splc501c_draw_pixel(dev, (int16_t)(x + col),
+                                          (int16_t)(y + row), color);
+            }
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_string(splc501c* const dev, const char* str, int16_t x,
+                          int16_t y, splc501c_color color)
+{
+    if (!dev || !str)
+    {
+        return false;
+    }
+
+    int32_t pos = x;
+    while (*str != '\0')
+    {
+        // Stop once the glyph would start past the right edge of the panel
+        if (pos >= SPLC501C_WIDTH)
+        {
+            break;
+        }
+        (void)splc501c_draw_char(dev, *str, (int16_t)pos, y, color);
+        pos += SPLC501C_CHAR_WIDTH;
+        str++;
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_cursor(splc501c* const dev, int16_t x, int16_t y)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    dev->cursor_x = x;
+    dev->cursor_y = y;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_set_text_color(splc501c* const dev, splc501c_color color)
+{
+    if (!dev)
+    {
+        return false;
+    }
+
+    dev->text_color = color;
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_print(splc501c* const dev, const char* str)
+{
+    if (!dev || !str)
+    {
+        return false;
+    }
+
+    while (*str != '\0')
+    {
+        if (*str == '\n')
+        {
+            dev->cursor_x = 0;
+            dev->cursor_y = (int16_t)(dev->cursor_y + SPLC501C_PIXELS_PER_PAGE);
+        }
+        else if (*str != '\r')
+        {
+            if ((dev->cursor_x + SPLC501C_CHAR_WIDTH) > SPLC501C_WIDTH)
+            {
+                dev->cursor_x = 0;
+                dev->cursor_y = (int16_t)(dev->cursor_y + SPLC501C_PIXELS_PER_PAGE);
+            }
+            (void)splc501c_draw_char(dev, *str, dev->cursor_x, dev->cursor_y,
+                                     dev->text_color);
+            dev->cursor_x = (int16_t)(dev->cursor_x + SPLC501C_CHAR_WIDTH);
+        }
+        str++;
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_bitmap(splc501c* const dev, int16_t x, int16_t y,
+                          int16_t width, int16_t height,
+                          const uint8_t* bitmap, splc501c_color color)
+{
+    if (!dev || !bitmap)
+    {
+        return false;
+    }
+    if (width <= 0 || height <= 0)
+    {
+        return true;
+    }
+
+    const size_t row_bytes = ((size_t)width + 7u) / 8u;
+
+    for (int32_t row = 0; row < height; row++)
+    {
+        const int32_t py = y + row;
+        if (py < 0 || py >= SPLC501C_HEIGHT)
+        {
+            continue;
+        }
+        for (int32_t col = 0; col < width; col++)
+        {
+            const int32_t px = x + col;
+            if (px < 0 || px >= SPLC501C_WIDTH)
+            {
+                continue;
+            }
+            const uint8_t byte = bitmap[((size_t)row * row_bytes)
+                                        + ((size_t)col / 8u)];
+            if (((byte >> (7u - ((unsigned)col % 8u))) & 0x01u) != 0u)
+            {
+                (void)splc501c_draw_pixel(dev, (int16_t)px, (int16_t)py, color);
+            }
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+bool splc501c_draw_image(splc501c* const dev, const uint8_t* image,
+                         size_t img_size)
+{
+    if (!dev || !image)
+    {
+        return false;
+    }
+
+    const size_t len = (img_size < sizeof(dev->buf)) ? img_size
+                                                     : sizeof(dev->buf);
+    memcpy(dev->buf, image, len);
+    return true;
+}
+
+//-----------------------------------------------------------------------------

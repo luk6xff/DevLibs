@@ -1,0 +1,29 @@
+{
+    "name": "MAX9611",
+    "description": "MAX9611 high-side current-sense amplifier with 12-bit ADC library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "MAX9611",
+        "MAX9612",
+        "Current Sense",
+        "ADC"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MAX9611"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/MAX9611"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

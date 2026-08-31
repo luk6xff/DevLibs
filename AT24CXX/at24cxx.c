@@ -1,5 +1,21 @@
  #include "at24cxx.h"
 
+/** AT24CXX device capability table, indexed by at24cxx_type **/
+const at24cxx_mem at24cxx_devices[] =
+{
+    { AT24C01,   128,    8,   1 },  //128 bytes=1Kbit, 8bytes=64bit
+    { AT24C02,   256,    8,   1 },
+    { AT24C04,   512,    16,  1 },
+    { AT24C08,   1024,   16,  1 },
+    { AT24C16,   2048,   16,  1 },
+    { AT24C32,   4096,   32,  2 },
+    { AT24C64,   8192,   32,  2 },
+    { AT24C128,  16384,  64,  2 },
+    { AT24C256,  32768,  64,  2 },
+    { AT24C512,  65536,  128, 2 },
+    { AT24C1024, 131072, 128, 2 },
+};
+
 //------------------------------------------------------------------------------
 at24cxx_status at24cxx_init(at24cxx* const dev, uint8_t i2c_addr_pins)
 {
@@ -7,7 +23,7 @@ at24cxx_status at24cxx_init(at24cxx* const dev, uint8_t i2c_addr_pins)
     {
         return AT24CXX_ERR;
     }
-    uint8_t i2c_addr = dev->addr;
+    uint8_t i2c_addr = i2c_addr_pins;
     switch (dev->type)
     {
         case AT24C01:
@@ -123,7 +139,6 @@ at24cxx_status at24cxx_write(const at24cxx* const dev, uint32_t addr,
         // Send right side of the data
         ret = at24cxx_write_buffer(dev, (addr+data_size-bytes_to_be_send_right), &data[data_size-bytes_to_be_send_right], bytes_to_be_send_right);
         at24cxx_wait_for_ready(dev);
-        printf("AT24CXX sending:data_size:%d, %d bytes to address: 0x%x\r\n",data_size, bytes_to_be_send_right, (addr+data_size-bytes_to_be_send_right));
         if (ret != AT24CXX_NOERR)
         {
             return ret;
@@ -192,16 +207,10 @@ bool at24cxx_check_space(const at24cxx* const dev, uint32_t addr, size_t size)
 //-----------------------------------------------------------------------------
 void at24cxx_wait_for_ready(const at24cxx* const dev)
 {
-    at24cxx_status ret;
-    uint16_t addr = 0;
-    uint8_t cmd = 0;
-
-    // Wait end of write
-    //do
-    {
-        //ret = at24cxx_read_buffer(dev, addr, &cmd, 1);
-        at24cxx_delay_ms(10);
-    }// while (ret == AT24CXX_I2C_ERR);
+    // The EEPROM does not ACK while an internal write cycle is in progress.
+    // A fixed delay covers the worst case tWR of all supported devices.
+    (void)dev;
+    at24cxx_delay_ms(10);
 }
 
 

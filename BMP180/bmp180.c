@@ -68,30 +68,30 @@ bool bmp180_set_configuration(bmp180 *const dev, float altitude, bmp180_oversamp
     bmp180_delay_ms(10);
 
     // store calibration data for further calculus
-    dev->calib.ac1 = data[0]  << 8 | data[1];
-    dev->calib.ac2 = data[2]  << 8 | data[3];
-    dev->calib.ac3 = data[4]  << 8 | data[5];
-    dev->calib.ac4 = data[6]  << 8 | data[7];
-    dev->calib.ac5 = data[8]  << 8 | data[9];
-    dev->calib.ac6 = data[10] << 8 | data[11];
-    dev->calib.b1  = data[12] << 8 | data[13];
-    dev->calib.b2  = data[14] << 8 | data[15];
-    dev->calib.mb  = data[16] << 8 | data[17];
-    dev->calib.mc  = data[18] << 8 | data[19];
-    dev->calib.md  = data[20] << 8 | data[21];
+    dev->calib.param.ac1 = data[0]  << 8 | data[1];
+    dev->calib.param.ac2 = data[2]  << 8 | data[3];
+    dev->calib.param.ac3 = data[4]  << 8 | data[5];
+    dev->calib.param.ac4 = data[6]  << 8 | data[7];
+    dev->calib.param.ac5 = data[8]  << 8 | data[9];
+    dev->calib.param.ac6 = data[10] << 8 | data[11];
+    dev->calib.param.b1  = data[12] << 8 | data[13];
+    dev->calib.param.b2  = data[14] << 8 | data[15];
+    dev->calib.param.mb  = data[16] << 8 | data[17];
+    dev->calib.param.mc  = data[18] << 8 | data[19];
+    dev->calib.param.md  = data[20] << 8 | data[21];
 
 #ifdef BMP180_TEST_FORMULA
-    dev->calib.ac1 = 408;
-    dev->calib.ac2 = -72;
-    dev->calib.ac3 = -14383;
-    dev->calib.ac4 = 32741;
-    dev->calib.ac5 = 32757;
-    dev->calib.ac6 = 23153;
-    dev->calib.b1 = 6190;
-    dev->calib.b2 = 4;
-    dev->calib.mb = -32768;
-    dev->calib.mc = -8711;
-    dev->calib.md = 2868;
+    dev->calib.param.ac1 = 408;
+    dev->calib.param.ac2 = -72;
+    dev->calib.param.ac3 = -14383;
+    dev->calib.param.ac4 = 32741;
+    dev->calib.param.ac5 = 32757;
+    dev->calib.param.ac6 = 23153;
+    dev->calib.param.b1 = 6190;
+    dev->calib.param.b2 = 4;
+    dev->calib.param.mb = -32768;
+    dev->calib.param.mc = -8711;
+    dev->calib.param.md = 2868;
     dev->oss = 0;
 #endif // #ifdef BMP180_TEST_FORMULA
 
@@ -277,8 +277,8 @@ float bmp180_calc_true_temperature(bmp180 *const dev, int32_t ut)
     int32_t t, x1, x2;
 
     // Straight out from the documentation
-    x1 = ((ut - dev->calib.ac6) * dev->calib.ac5) >> 15;
-    x2 = ((int32_t)dev->calib.mc << 11) / (x1 + dev->calib.md);
+    x1 = ((ut - dev->calib.param.ac6) * dev->calib.param.ac5) >> 15;
+    x2 = ((int32_t)dev->calib.param.mc << 11) / (x1 + dev->calib.param.md);
     dev->b5 = x1 + x2;
     t = (dev->b5 + 8) >> 4;
 
@@ -294,14 +294,14 @@ float bmp180_calc_true_pressure(bmp180 *const dev, int32_t up)
 
     // Straight out from the documentation
     b6 = dev->b5 - 4000;
-    x1 = (dev->calib.b2 * (b6 * b6 >> 12)) >> 11;
-    x2 = dev->calib.ac2 * b6 >> 11;
+    x1 = (dev->calib.param.b2 * (b6 * b6 >> 12)) >> 11;
+    x2 = dev->calib.param.ac2 * b6 >> 11;
     x3 = x1 + x2;
-    b3 = (((dev->calib.ac1 * 4 + x3) << dev->oss) + 2) >> 2;
-    x1 = (dev->calib.ac3 * b6) >> 13;
-    x2 = (dev->calib.b1 * ((b6 * b6) >> 12)) >> 16;
+    b3 = (((dev->calib.param.ac1 * 4 + x3) << dev->oss) + 2) >> 2;
+    x1 = (dev->calib.param.ac3 * b6) >> 13;
+    x2 = (dev->calib.param.b1 * ((b6 * b6) >> 12)) >> 16;
     x3 = ((x1 + x2) + 2) >> 2;
-    b4 = dev->calib.ac4 * (uint32_t)(x3 + 32768) >> 15;
+    b4 = dev->calib.param.ac4 * (uint32_t)(x3 + 32768) >> 15;
     b7 = ((uint32_t)up - b3)* (50000 >> dev->oss);
     if (b7 < 0x80000000)
     {

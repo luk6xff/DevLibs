@@ -1,0 +1,30 @@
+{
+    "name": "SX1278",
+    "description": "SX1278 LoRa radio transceiver library (deprecated, use the LORA library instead)",
+    "platforms": "*",
+    "frameworks": [
+        "mbed"
+    ],
+    "keywords": [
+        "SX1278",
+        "SX127x",
+        "LoRa",
+        "Radio",
+        "Transceiver",
+        "RA-01",
+        "RA-02"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/SX1278"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/SX1278"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

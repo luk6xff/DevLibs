@@ -1,7 +1,7 @@
 Import('env')
 from os.path import join, realpath
 
-# private library flags
+# Pick the platform implementation selected with -D PLATFORM=<arduino|mbed|stm32cube>
 for item in env.get("CPPDEFINES", []):
     if isinstance(item, tuple) and item[0] == "PLATFORM":
         env.Append(CPPPATH=[realpath(join("platform", item[1]))])

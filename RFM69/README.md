@@ -1,425 +1,221 @@
-# RFM69 Library
-
-RFM69 library for RFM69W, RFM69HW, RFM69CW, RFM69HCW (semtech SX1231, SX1231H) based on great library from [LowPowerLab](https://github.com/LowPowerLab/RFM69)
+# RFM69 sub-GHz radio transceiver
 
 ## Description
-The library was tested with [MBED](https://www.mbed.com) platform on RFM69 boards Hope-RF.
+Platform independent driver for the HopeRF RFM69W, RFM69HW, RFM69CW and
+RFM69HCW modules (Semtech SX1231 / SX1231H), based on the great library from
+[LowPowerLab](https://github.com/LowPowerLab/RFM69).
+
+The core (`rfm69.c` / `rfm69.h`) is written in plain C and knows nothing
+about the underlying hardware. Everything hardware related is provided by a thin
+platform layer living in `platform/<platform>`.
+
+* Interface: SPI + NSS, RESET and DIO0..DIO5 pins (only DIO0 is mandatory)
+* Frequency bands: `RFM69_315MHZ`, `RFM69_433MHZ`, `RFM69_868MHZ`, `RFM69_915MHZ`
+* Max payload: `RFM69_MAX_DATA_LEN` (FIFO size minus the 4 byte header)
+* Addressing: 10-bit node id, 8-bit network id, `RFM69_BROADCAST_ADDR` for
+  broadcasts, optional promiscuous mode
+* Hardware AES-128 encryption (`RFM69_AES_KEY_LEN` = 16 bytes key)
+* ACK / retry handling and automatic transmit power control (ATC) targeting a
+  configurable RSSI
+* Power range: `RFM69W_MIN_POWER_LEVEL_DBM` .. `RFM69HW_MAX_POWER_LEVEL_DBM`
+* On-chip temperature sensor via `rfm69_read_temperature()`
+
+The library was tested with [MBED](https://www.mbed.com) on HopeRF RFM69 boards.
+
+## Supported platforms
+| Platform | Files |
+|---|---|
+| Arduino | `platform/arduino/rfm69-arduino.{h,cpp}` |
+| Mbed | `platform/mbed/rfm69-mbed.{h,cpp}` |
+| STM32 Cube HAL | `platform/stm32cube/rfm69-cube-hal.{h,c}` |
+| STM32 Cube LL | `platform/stm32cube_ll/rfm69-cube-ll.{h,c}` |
 
 ## Usage
-Simple snippet how to quickly use the library for communication betwwen two RFM69 modules on mbed platform:
+Demo code showing how to use the library on the `ARDUINO` platform.
 
-### CLIENT
-#### MBED:
+### NODE
 ```cpp
-#include "RFM69/platform/rfm69-mbed.h"
+#include "RFM69/platform/arduino/rfm69-arduino.h"
 
-// Defines
-#define NODEID          99
-#define NETWORKID       100
-#define GATEWAYID       1
-#define FREQUENCY       RF69_915MHZ
-#define ENCRYPTKEY      "YourEncryptKey12" // Has to be same 16 characters/uint8_ts on gateway
-#define IS_RFM69HW_HCW  // Uncomment only for RFM69HW/HCW! Remove if you have RFM69W/CW!
-#define TRANSMITPERIOD  1000 // Transmit a packet to gateway so often (in ms)
-#define SERIAL_BAUD     9600
+// PINOUT FOR ESP32 WROOM DEVBOARD
+#define RFM69_NSS_PIN   5
+#define RFM69_RST_PIN  14
+#define RFM69_DIO0_PIN 26
 
-// Datatypes
-typedef struct 
+#define GATEWAY_ID     RFM69_DEFAULT_GATEWAY_ID
+
+typedef struct
 {
-  uint8_t  node_id; // Store this node_id
-  uint32_t uptime; // Uptime in ms
-  float    temp;   // Temperature maybe?
-} Frame_t;
+    uint8_t  node_id;
+    uint32_t uptime; // Uptime in [ms]
+    float    temp;
+} frame_t;
 
+rfm69 dev;
+rfm69_arduino arduino_dev;
 
-// Private variables
-static Frame_t frame;
-const RadioSettings_t settings = 
+void setup()
 {
-    FREQUENCY,
-    NODEID,
-    NETWORKID
-};
+    Serial.begin(115200);
 
-// Functions
-int main() 
-{
-    Serial dbg(USBTX, USBRX);
-    dbg.baud(9600);
-    rfm69_mbed_init(&settings, /***!!! ADD HERE YOUR PIN SETTINGS !!!***/);
-#ifdef IS_RFM69HW_HCW
-    rfm69_set_high_power();
-#endif
-    RFM69Encrypt(ENCRYPTKEY);
-    debug(">>> RFM69 demo app <<<");
+    arduino_dev.spi = &SPI;
+    arduino_dev.nss = RFM69_NSS_PIN;
+    arduino_dev.reset = RFM69_RST_PIN;
+    arduino_dev.dio0 = RFM69_DIO0_PIN;
 
-    long lastPeriod = -1;
-    while(1)
+    dev.settings.node_id = RFM69_DEFAULT_NODE_ID;
+    dev.settings.network_id = RFM69_DEFAULT_NETWORKID;
+    dev.settings.freq_band = RFM69_433MHZ;
+    dev.settings.power_level_dbm = RFM69_DEFAULT_POWER_LEVEL_DBM;
+    dev.settings.promiscuous_mode = RFM69_DEFAULT_PROMISCUOUS_MODE;
+    dev.settings.is_rfm69hw = RFM69_DEFAULT_IS_RFM69HW;
+    dev.settings.aes_encrypt_enable = true;
+    memcpy(dev.settings.aes_encrypt_key, RFM69_DEFAULT_ENCRYPTKEY, RFM69_AES_KEY_LEN);
+    dev.on_receive = NULL;
+
+    if (!rfm69_arduino_init(&dev, &arduino_dev))
     {
-        //check for any received packets
-        if (RFM69receiveDone())
-        {
-            debug("[SENDERID: %d]", rfm69_received_data()->SENDERID);
-            for (uint8_t i = 0; i < rfm69_received_data()->DATALEN; i++)
-            {
-                debug("%c", (char)rfm69_received_data()->DATA[i]);
-            }
-            debug("[RX_RSSI: %d]", RFM69readRSSI());
-
-            if (rfm69_ack_requested())
-            {
-            RFM69sendACK();
-            debug(" - ACK sent");
-            RFMDelayMs(10);
-            }
-            Blink(LED_BUILTIN,5);
-        }
-    
-        int currPeriod = rfm69_timer_read_ms()/TRANSMITPERIOD;
-        if (currPeriod != lastPeriod)
-        {
-            frame.node_id = NODEID;
-            frame.uptime = rfm69_timer_read_ms();
-            frame.temp = rfm69_read_temperature(0);
-            
-            debug("Sending struct of size:(%d)", sizeof(frame));
-            if (RFM69sendWithRetry(GATEWAYID, (const void*)(&frame), sizeof(frame)))
-            {
-                debug("Frame sent!");
-            }
-            else 
-            {
-                debug("Frame has not been sent!");
-            }
-            lastPeriod=currPeriod;
-        }
+        Serial.println("RFM69 init failed!");
     }
-}
-```
-#### ARDUINO:
-```cpp
-#include "RFM69/platform/rfm69-arduino.h"
 
-// Defines
-#define NODEID          99
-#define NETWORKID       100
-#define GATEWAYID       1
-#define FREQUENCY       RF69_915MHZ
-#define ENCRYPTKEY      "YourEncryptKey12" // Has to be same 16 characters/uint8_ts on gateway
-#define IS_RFM69HW_HCW  // Uncomment only for RFM69HW/HCW! Remove if you have RFM69W/CW!
-#define TRANSMITPERIOD  1000 // Transmit a packet to gateway so often (in ms)
-#define SERIAL_BAUD     9600
-
-// Datatypes
-typedef struct 
-{
-  uint8_t  node_id; // Store this node_id
-  uint32_t uptime; // Uptime in ms
-  float    temp;   // Temperature maybe?
-} Frame_t;
-
-
-// Private variables
-static Frame_t frame;
-const RadioSettings_t settings = 
-{
-    FREQUENCY,
-    NODEID,
-    NETWORKID
-};
-
-// Functions
-void setup() {
-    Serial.begin(SERIAL_BAUD);
-    rfm69_arduino_init(&settings, /***!!! ADD HERE YOUR PIN SETTINGS !!!***/);
-#ifdef IS_RFM69HW_HCW
-    rfm69_set_high_power();
-#endif
-    RFM69Encrypt(ENCRYPTKEY);
-    debugn(">>> RFM69 demo app <<<");
+    // For RFM69HW/HCW only
+    rfm69_set_high_power(&dev, true);
 }
 
-long lastPeriod = -1;
 void loop()
 {
-    //check for any received packets
-    if (RFM69receiveDone())
-    {
-        Serial.print('[');Serial.print(RFM69SENDERID, DEC);Serial.print("] ");
-        for (uint8_t i = 0; i < RFM69DATALEN; i++)
-        Serial.print((char)RFM69DATA[i]);
-        Serial.print("   [RX_RSSI:");Serial.print(RFM69readRSSI());Serial.print("]");
+    frame_t frame;
+    frame.node_id = dev.settings.node_id;
+    frame.uptime = rfm69_timer_read_ms();
+    frame.temp = rfm69_read_temperature(&dev, 0);
 
-        if (rfm69_ack_requested())
-        {
-        RFM69sendACK();
-        Serial.print(" - ACK sent");
-        RFMDelayMs(10);
-        }
-        Blink(LED_BUILTIN,5);
-        debugn();
-    }
-  
-    int currPeriod = rfm69_timer_read_ms()/TRANSMITPERIOD;
-    if (currPeriod != lastPeriod)
+    if (rfm69_send_with_retry(&dev, GATEWAY_ID, &frame, sizeof(frame),
+                              RFM69_DEFAULT_SEND_RETRIES_NUM,
+                              RFM69_DEFAULT_ACKTIMEOUT))
     {
-        frame.node_id = NODEID;
-        frame.uptime = rfm69_timer_read_ms();
-        frame.temp = rfm69_read_temperature(0);
-        
-        Serial.print("Sending struct (");
-        Serial.print(sizeof(frame));
-        Serial.print(" uint8_ts) ... ");
-        if (RFM69sendWithRetry(GATEWAYID, (const void*)(&frame), sizeof(frame)))
-        {
-            Serial.print(" Frame sent!");
-        }
-        else 
-        {
-            Serial.print(" Frame has not been sent!");
-        }
-        debugn();
-        Blink(LED_BUILTIN,3);
-        lastPeriod=currPeriod;
+        Serial.println("Frame sent!");
     }
-}
+    else
+    {
+        Serial.println("Frame has not been sent!");
+    }
 
-void Blink(uint8_t PIN, int DELAY_MS)
-{
-  pinMode(PIN, OUTPUT);
-  digitalWrite(PIN,HIGH);
-  RFMDelayMs(DELAY_MS);
-  digitalWrite(PIN,LOW);
+    rfm69_delay_ms(RFM69_DEFAULT_TRANSMIT_PERIOD);
 }
 ```
-
-
 
 ### GATEWAY
-#### MBED:
 ```cpp
-#include "RFM69/platform/rfm69-mbed.h"
+#include "RFM69/platform/arduino/rfm69-arduino.h"
 
-// Defines
-#define NODEID          99
-#define NETWORKID       100
-#define GATEWAYID       1
-#define FREQUENCY       RF69_915MHZ
-#define ENCRYPTKEY      "YourEncryptKey12" // Has to be same 16 characters/uint8_ts on gateway
-#define IS_RFM69HW_HCW  // Uncomment only for RFM69HW/HCW! Remove if you have RFM69W/CW!
-#define TRANSMITPERIOD  1000 // Transmit a packet to gateway so often (in ms)
-#define SERIAL_BAUD     9600
+// PINOUT FOR ESP32 WROOM DEVBOARD
+#define RFM69_NSS_PIN   5
+#define RFM69_RST_PIN  14
+#define RFM69_DIO0_PIN 26
 
-// Datatypes
-typedef struct 
+typedef struct
 {
-    uint8_t  node_id; // Store this node_id
-    uint32_t uptime; // Uptime in ms
-    float    temp;   // Temperature maybe?
-} Frame_t;
+    uint8_t  node_id;
+    uint32_t uptime; // Uptime in [ms]
+    float    temp;
+} frame_t;
 
+rfm69 dev;
+rfm69_arduino arduino_dev;
 
-// Private variables
-static bool promiscuousMode = false; // Set to 'true' to sniff all packets on the same network
-static Frame_t frame;
-const RadioSettings_t settings = 
+void setup()
 {
-    FREQUENCY,
-    NODEID,
-    NETWORKID
-};
+    Serial.begin(115200);
 
-// Functions
-int main() 
-{
-    Serial dbg(USBTX, USBRX);
-    dbg.baud(9600);
-    rfm69_arduino_init(&settings, /***!!! ADD HERE YOUR PIN SETTINGS !!!***/);
-#ifdef IS_RFM69HW_HCW
-    rfm69_set_high_power();
-#endif
-    RFM69Encrypt(ENCRYPTKEY);
-    rfm69_set_promiscuous_mode(promiscuousMode);
-    debug(">>> RFM69 demo app <<<");
+    arduino_dev.spi = &SPI;
+    arduino_dev.nss = RFM69_NSS_PIN;
+    arduino_dev.reset = RFM69_RST_PIN;
+    arduino_dev.dio0 = RFM69_DIO0_PIN;
 
-    uint8_t ackCount=0;
-    while(1) 
+    dev.settings.node_id = RFM69_DEFAULT_GATEWAY_ID;
+    dev.settings.network_id = RFM69_DEFAULT_NETWORKID;
+    dev.settings.freq_band = RFM69_433MHZ;
+    dev.settings.power_level_dbm = RFM69_DEFAULT_POWER_LEVEL_DBM;
+    dev.settings.promiscuous_mode = false;
+    dev.settings.is_rfm69hw = RFM69_DEFAULT_IS_RFM69HW;
+    dev.settings.aes_encrypt_enable = true;
+    memcpy(dev.settings.aes_encrypt_key, RFM69_DEFAULT_ENCRYPTKEY, RFM69_AES_KEY_LEN);
+    dev.on_receive = NULL;
+
+    if (!rfm69_arduino_init(&dev, &arduino_dev))
     {
-        if (rfm69_receive_done())
-        {
-            debug("from SENDERID[%d] ", rfm69_received_data()->SENDERID);
-            debug(" [RX_RSSI: %d]", rfm69_read_rssi());
-            if (promiscuousMode)
-            {
-                debug("to TARGETID:[%d]", rfm69_received_data()->TARGETID);
-            }
-
-            if (rfm69_received_data()->DATALEN != sizeof(Payload))
-            {
-                debug("Invalid payload received, not matching Payload struct!");
-            }
-            else
-            {
-                frame = *(Payload*)rfm69_received_data()->DATA; // Assume rfm69_received_data()->DATA actually contains our struct
-                debug(" node_id=");
-                debug(frame.node_id);
-                debug(" uptime=");
-                debug(frame.uptime);
-                debug(" temp=");
-                debug(frame.temp);
-            }
-            
-            if (rfm69_ack_requested())
-            {
-                uint8_t theNodeID = rfm69_received_data()->SENDERID;
-                rfm69_send_ack();
-                debug(" - ACK sent.");
-
-                // When a node requests an ACK, respond to the ACK
-                // and also send a packet requesting an ACK (every 3rd one only)
-                // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
-                if (ackCount++%3==0)
-                {
-                    debug(" Pinging node ");
-                    debug("%d", theNodeID);
-                    debug(" - ACK...");
-                    RFMDelayMs(3); // Need this when sending right after reception .. ?
-                    if (rfm69_send_with_retry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
-                    {
-                        debug("ok!");
-                    }
-                    else
-                    {
-                        debug("nothing");
-                    }
-                }
-            }
-        }
+        Serial.println("RFM69 init failed!");
     }
-    return 0;
+
+    rfm69_set_high_power(&dev, true);
+    rfm69_receive_begin(&dev);
+}
+
+void loop()
+{
+    if (!rfm69_receive_done(&dev))
+    {
+        return;
+    }
+
+    const rfm69_payload_data* rx = rfm69_received_data(&dev);
+
+    Serial.print("From node: "); Serial.print(rx->sender_id);
+    Serial.print(", RSSI: "); Serial.println(rx->rssi);
+
+    if (rx->data_len == sizeof(frame_t))
+    {
+        frame_t frame;
+        memcpy(&frame, rx->data, sizeof(frame));
+        Serial.print("  node_id="); Serial.print(frame.node_id);
+        Serial.print(" uptime="); Serial.print(frame.uptime);
+        Serial.print(" temp="); Serial.println(frame.temp);
+    }
+    else
+    {
+        Serial.println("Invalid payload received, not matching frame_t struct!");
+    }
+
+    if (rfm69_ack_requested(&dev))
+    {
+        rfm69_send_ack(&dev);
+        Serial.println(" - ACK sent.");
+    }
 }
 ```
 
+### Notes
+* For RFM69HW/HCW modules you **must** call `rfm69_set_high_power(&dev, true)`
+  after initialization, otherwise transmission will not work. Do not enable it
+  for RFM69W/CW modules.
+* The AES key has to be exactly `RFM69_AES_KEY_LEN` (16) bytes long and
+  identical on the node and on the gateway.
+* Automatic transmit power control can be turned on with
+  `rfm69_enable_auto_power(&dev, RFM69_DEFAULT_PWR_ATC_TARGET_RSSI)`.
 
+## Porting to a different platform
+To port this library to another platform you only have to implement the
+HW dependent functions declared at the bottom of `rfm69.h`:
 
+* `rfm69_io_init()`
+* `rfm69_io_deinit()`
+* `rfm69_ioirq_init()`
+* `rfm69_reset()`
+* `rfm69_write_buffer()`
+* `rfm69_read_buffer()`
+* `rfm69_delay_ms()`
+* `rfm69_timer_read_ms()`
+* `rfm69_print_all_regs()`
 
+and provide an `rfm69_<platform>_init()` helper that stores your platform
+descriptor in `dev->platform_dev`. See `platform/arduino/rfm69-arduino.cpp`
+for a reference implementation.
 
-#### ARDUINO:
-```cpp
-#include "RFM69/platform/rfm69-arduino.h"
-
-// Defines
-#define NODEID          99
-#define NETWORKID       100
-#define GATEWAYID       1
-#define FREQUENCY       RF69_915MHZ
-#define ENCRYPTKEY      "YourEncryptKey12" // Has to be same 16 characters/uint8_ts on gateway
-#define IS_RFM69HW_HCW  // Uncomment only for RFM69HW/HCW! Remove if you have RFM69W/CW!
-#define TRANSMITPERIOD  1000 // Transmit a packet to gateway so often (in ms)
-#define SERIAL_BAUD     9600
-
-// Datatypes
-typedef struct 
-{
-    uint8_t  node_id; // Store this node_id
-    uint32_t uptime; // Uptime in ms
-    float    temp;   // Temperature maybe?
-} Frame_t;
-
-
-// Private variables
-static bool promiscuousMode = false; // Set to 'true' to sniff all packets on the same network
-static Frame_t frame;
-const RadioSettings_t settings = 
-{
-    FREQUENCY,
-    NODEID,
-    NETWORKID
-};
-
-// Functions
-void setup() {
-    Serial.begin(SERIAL_BAUD);
-    rfm69_arduino_init(&settings, /***!!! ADD HERE YOUR PIN SETTINGS !!!***/);
-#ifdef IS_RFM69HW_HCW
-    rfm69_set_high_power();
-#endif
-    RFM69Encrypt(ENCRYPTKEY);
-    rfm69_set_promiscuous_mode(promiscuousMode);
-    Serial.println(">>> RFM69 demo app <<<");
-}
-
-uint8_t ackCount=0;
-void loop() 
-{
-    if (rfm69_receive_done())
-    {
-        Serial.print('[');Serial.print(rfm69_received_data()->SENDERID, DEC);Serial.print("] ");
-        Serial.print(" [RX_RSSI:");Serial.print(rfm69_read_rssi());Serial.print("]");
-        if (promiscuousMode)
-        {
-            Serial.print("to [");Serial.print(rfm69_received_data()->TARGETID, DEC);Serial.print("] ");
-        }
-
-        if (rfm69_received_data()->DATALEN != sizeof(Payload))
-        {
-            Serial.print("Invalid payload received, not matching Payload struct!");
-        }
-        else
-        {
-            frame = *(Payload*)rfm69_received_data()->DATA; // Assume rfm69_received_data()->DATA actually contains our struct
-            Serial.print(" node_id=");
-            Serial.print(frame.node_id);
-            Serial.print(" uptime=");
-            Serial.print(frame.uptime);
-            Serial.print(" temp=");
-            Serial.print(frame.temp);
-        }
-        
-        if (rfm69_ack_requested())
-        {
-            uint8_t theNodeID = rfm69_received_data()->SENDERID;
-            rfm69_send_ack();
-            Serial.print(" - ACK sent.");
-
-            // When a node requests an ACK, respond to the ACK
-            // and also send a packet requesting an ACK (every 3rd one only)
-            // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
-            if (ackCount++%3==0)
-            {
-                Serial.print(" Pinging node ");
-                Serial.print(theNodeID);
-                Serial.print(" - ACK...");
-                RFMDelayMs(3); // Need this when sending right after reception .. ?
-                if (rfm69_send_with_retry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
-                {
-                    Serial.print("ok!");
-                }
-                else
-                {
-                    Serial.print("nothing");
-                }
-            }
-        }
-        Serial.println();
-        Blink(LED_BUILTIN,3);
-    }
-}
-
-void Blink(uint8_t PIN, int DELAY_MS)
-{
-  pinMode(PIN, OUTPUT);
-  digitalWrite(PIN,HIGH);
-  RFMDelayMs(DELAY_MS);
-  digitalWrite(PIN,LOW);
-}
-```
-
-
-## Porting to other platform
-If you want to port this library on other platform, the only thing you have to do is define HW/Platform dependent functions as it is done in `platform/rfm69-mbed.cpp` file.
-
+## License
+MIT - see the repository root for details.
 
 ## Authors
 * Felix Rusu, LowPowerLab.com
+* Lukasz Uszko - lukasz.uszko@gmail.com
+
 * Lukasz Uszko aka `luk6xff` [lukasz.uszko@gmail.com]

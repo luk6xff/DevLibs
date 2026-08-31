@@ -1,0 +1,28 @@
+{
+    "name": "AD9106",
+    "description": "AD9106 quad, low power, 12-bit, 180 MSPS DAC and waveform generator library",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "AD9106",
+        "DAC",
+        "Waveform Generator"
+    ],
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": {
+        "name": "Lukasz Uszko",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/AD9106"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/AD9106"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

@@ -40,6 +40,9 @@ extern "C" {
 
 /**
  * @brief BMP180 calibration data
+ *
+ * The anonymous struct member is a C11/GNU extension, so the inner struct is
+ * named to stay compilable as strict C99.
  */
 typedef union
 {
@@ -57,7 +60,7 @@ typedef union
         int16_t mb;
         int16_t mc;
         int16_t md;
-    };
+    } param;
 } bmp180_calibration_t;
 
 

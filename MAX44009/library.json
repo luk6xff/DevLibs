@@ -4,13 +4,15 @@
     "platforms": "*",
     "frameworks": [
         "mbed",
-        "arduino"
+        "arduino",
+        "stm32cube"
     ],
     "keywords": [
         "MAX44009",
         "Light Sensor"
     ],
     "version": "0.1.0",
+    "license": "MIT",
     "authors": {
         "name": "Lukasz Uszko",
         "url": "https://github.com/luk6xff/DevLibs/tree/master/MAX44009"

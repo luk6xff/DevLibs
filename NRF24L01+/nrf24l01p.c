@@ -418,13 +418,13 @@ int nrf24l01p_get_crc_length(nrf24l01p * const dev)
 //------------------------------------------------------------------------------
 void nrf24l01p_set_transfer_size(nrf24l01p * const dev, uint8_t size, uint8_t pipe_num)
 {
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         //printf("nRF24L01P: Invalid Transfer Size pipe_num number %d\r\n", pipe_num);
         return;
     }
 
-    if ((size < 0) || (size > _NRF24L01P_RX_FIFO_SIZE))
+    if (size > _NRF24L01P_RX_FIFO_SIZE)
     {
         //printf("nRF24L01P: Invalid Transfer Size setting %d\r\n", size);
         return;
@@ -439,7 +439,7 @@ void nrf24l01p_set_transfer_size(nrf24l01p * const dev, uint8_t size, uint8_t pi
 int nrf24l01p_get_transfer_size(nrf24l01p * const dev, uint8_t pipe_num)
 {
 
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         //printf("nRF24L01P: Invalid Transfer Size pipe_num number %d\r\n", pipe_num);
         return 0;
@@ -469,7 +469,7 @@ void nrf24l01p_disable_auto_ack(nrf24l01p * const dev)
 void nrf24l01p_enable_auto_ack(nrf24l01p * const dev, uint8_t pipe_num)
 {
 
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         //printf("nRF24L01P: Invalid Enable AutoAcknowledge pipe_num number %d\r\n", pipe_num);
         return;
@@ -492,7 +492,7 @@ void nrf24l01p_disable_auto_retransmit(nrf24l01p * const dev)
 void nrf24l01p_set_rx_addr(nrf24l01p * const dev, uint64_t addr, int length, uint8_t pipe_num)
 {
 
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         //printf("nRF24L01P: Invalid nrf24l01p_set_rx_addr pipe_num number %d\r\n", pipe_num);
         return;
@@ -534,7 +534,7 @@ void nrf24l01p_set_rx_addr(nrf24l01p * const dev, uint64_t addr, int length, uin
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     while (length-- > 0)
     {
@@ -582,7 +582,7 @@ void nrf24l01p_set_tx_addr(nrf24l01p * const dev, uint64_t addr, int length)
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     while (length-- > 0)
     {
@@ -598,7 +598,7 @@ void nrf24l01p_set_tx_addr(nrf24l01p * const dev, uint64_t addr, int length)
 //------------------------------------------------------------------------------
 uint64_t nrf24l01p_get_rx_addr(nrf24l01p * const dev, uint8_t pipe_num)
 {
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         //printf("nRF24L01P: Invalid nrf24l01p_set_rx_addr pipe_num number %d\r\n", pipe_num);
         return 0;
@@ -642,7 +642,7 @@ uint64_t nrf24l01p_get_rx_addr(nrf24l01p * const dev, uint8_t pipe_num)
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     for (int i=0; i<length; i++)
     {
@@ -694,7 +694,7 @@ uint64_t nrf24l01p_get_tx_addr(nrf24l01p * const dev)
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     for (int i=0; i<length; i++)
     {
@@ -711,7 +711,7 @@ uint64_t nrf24l01p_get_tx_addr(nrf24l01p * const dev)
 bool nrf24l01p_available(nrf24l01p * const dev, uint8_t pipe_num)
 {
 
-    if ((pipe_num < NRF24L01P_PIPE_P0) || (pipe_num > NRF24L01P_PIPE_P5))
+    if (pipe_num > NRF24L01P_PIPE_P5)
     {
         printf("nRF24L01P: Invalid nrf24l01p_available pipe_num number %d\r\n", pipe_num);
         return false;
@@ -726,6 +726,7 @@ bool nrf24l01p_available(nrf24l01p * const dev, uint8_t pipe_num)
 int nrf24l01p_write(nrf24l01p * const dev, uint8_t pipe_num, uint8_t *data, int len)
 {
     // @note: The pipe_num number is ignored in a Transmit / nrf24l01p_write
+    (void)pipe_num;
 
     // Save the CE state
     bool ce_state = nrf24l01p_get_ce_pin(dev);
@@ -743,7 +744,7 @@ int nrf24l01p_write(nrf24l01p * const dev, uint8_t pipe_num, uint8_t *data, int 
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_WR_TX_PAYLOAD);
+    (void)nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_WR_TX_PAYLOAD);
 
     for (int i = 0; i < len; i++)
     {
@@ -797,7 +798,7 @@ int nrf24l01p_read(nrf24l01p * const dev, uint8_t pipe_num, uint8_t *data, int l
     {
         nrf24l01p_set_csn_pin(dev, false);
 
-        int status = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_R_RX_PL_WID);
+        (void)nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_R_RX_PL_WID);
 
         int rx_payload_width = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_NOP);
 
@@ -809,9 +810,9 @@ int nrf24l01p_read(nrf24l01p * const dev, uint8_t pipe_num, uint8_t *data, int l
             // Received payload error: need to flush the FIFO
             nrf24l01p_set_csn_pin(dev, false);
 
-            int status = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_FLUSH_RX);
+            (void)nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_FLUSH_RX);
 
-            int rx_payload_width = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_NOP);
+            (void)nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_NOP);
 
             nrf24l01p_set_csn_pin(dev, true);
 
@@ -827,7 +828,7 @@ int nrf24l01p_read(nrf24l01p * const dev, uint8_t pipe_num, uint8_t *data, int l
 
             nrf24l01p_set_csn_pin(dev, false);
 
-            int status = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_RD_RX_PAYLOAD);
+            (void)nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_RD_RX_PAYLOAD);
 
             for (int i = 0; i < len; i++) {
 
@@ -872,7 +873,7 @@ void nrf24l01p_write_reg(nrf24l01p * const dev, uint8_t reg_addr, uint8_t reg_da
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     nrf24l01p_spi_write(dev, reg_data & 0xFF);
 
@@ -890,7 +891,7 @@ int nrf24l01p_read_reg(nrf24l01p * const dev, uint8_t reg_addr)
 
     nrf24l01p_set_csn_pin(dev, false);
 
-    int status = nrf24l01p_spi_write(dev, cn);
+    (void)nrf24l01p_spi_write(dev, cn);
 
     int dn = nrf24l01p_spi_write(dev, _NRF24L01P_SPI_CMD_NOP);
 

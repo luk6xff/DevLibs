@@ -1,0 +1,41 @@
+{
+    "name": "RF22",
+    "description": "HopeRF RFM22B/RFM23B (RF22B) ISM transceiver library with addressed, reliable and routed datagram layers",
+    "platforms": "*",
+    "frameworks": [
+        "mbed",
+        "arduino",
+        "stm32cube"
+    ],
+    "keywords": [
+        "RF22",
+        "RFM22B",
+        "RFM23B",
+        "HopeRF",
+        "ISM",
+        "Radio",
+        "Transceiver"
+    ],
+    "version": "0.1.0",
+    "license": "GPL-2.0-only",
+    "authors": [
+        {
+            "name": "Mike McCauley",
+            "email": "mikem@open.com.au",
+            "maintainer": false
+        },
+        {
+            "name": "Lukasz Uszko",
+            "email": "lukasz.uszko@gmail.com",
+            "url": "https://github.com/luk6xff/DevLibs/tree/master/RF22",
+            "maintainer": true
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luk6xff/DevLibs/tree/master/RF22"
+    },
+    "build": {
+        "extraScript": "lib_build.py"
+    }
+}

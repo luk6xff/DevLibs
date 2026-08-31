@@ -67,21 +67,8 @@ typedef struct
     void* platform_dev;
 } at24cxx;
 
-/** AT24CXX devices **/
-static const at24cxx_mem at24cxx_devices[] =
-{
-    { AT24C01,   128,    8,   1 },  //128 bytes=1Kbit, 8bytes=64bit
-    { AT24C02,   256,    8,   1 },
-    { AT24C04,   512,    16,  1 },
-    { AT24C08,   1024,   16,  1 },
-    { AT24C16,   2048,   16,  1 },
-    { AT24C32,   4096,   32,  2 },
-    { AT24C64,   8192,   32,  2 },
-    { AT24C128,  16384,  64,  2 },
-    { AT24C256,  32768,  64,  2 },
-    { AT24C512,  65536,  128, 2 },
-    { AT24C1024, 131072, 128, 2 },
-};
+/** AT24CXX device capability table, indexed by at24cxx_type **/
+extern const at24cxx_mem at24cxx_devices[];
 
 
 

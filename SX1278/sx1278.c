@@ -200,7 +200,7 @@ bool SX1278Init(RadioEvents_t *events)
     {
         return false;
     }
-    
+
     SX1278Reset();
     RxChainCalibration();
     SX1278SetOpMode(RF_OPMODE_SLEEP);
@@ -220,7 +220,7 @@ void SX1278RadioRegistersInit()
     {
         SX1278SetModem(SX1278RadioRegsInit[i].Modem);
         SX1278Write(SX1278RadioRegsInit[i].Addr, SX1278RadioRegsInit[i].Value);
-    }    
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -243,6 +243,7 @@ void SX1278SetChannel(uint32_t freq)
 bool SX1278IsChannelFree(RadioModems_t modem, uint32_t freq, int16_t rssiThresh, uint32_t maxCarrierSenseTime)
 {
     // TODO handle carrierSenseTime
+    (void)maxCarrierSenseTime;
     int16_t rssi = 0;
 
     SX1278SetModem(modem);
@@ -344,7 +345,7 @@ void SX1278SetRxConfig(RadioModems_t modem, uint32_t bandwidth,
             {
                 SX1278Write(REG_PAYLOADLENGTH, 0xFF); // Set payload length to the maximum
             }
-            
+
             SX1278Write(REG_PACKETCONFIG1,
                          (SX1278Read(REG_PACKETCONFIG1) &
                            RF_PACKETCONFIG1_CRC_MASK &
@@ -1034,12 +1035,12 @@ void SX1278StartCad(void)
                                         //RFLR_IRQFLAGS_CADDETECTED
                                        );
 
-            if (dioIrq[3]) 
+            if (dioIrq[3])
             {
                 // DIO3=CADDone
                 SX1278Write(REG_DIOMAPPING1, (SX1278Read(REG_DIOMAPPING1 ) & RFLR_DIOMAPPING1_DIO3_MASK ) | RFLR_DIOMAPPING1_DIO3_00 );
-            } 
-            else 
+            }
+            else
             {
                 // DIO0=CADDone
                 SX1278Write(REG_DIOMAPPING1, (SX1278Read(REG_DIOMAPPING1 ) & RFLR_DIOMAPPING1_DIO0_MASK ) | RFLR_DIOMAPPING1_DIO0_10 );
@@ -1104,15 +1105,15 @@ int16_t SX1278GetRssi(RadioModems_t modem)
 int32_t SX1278GetFrequencyError(RadioModems_t modem )
 {
     int32_t val = 0;
-    
+
     if (modem != MODEM_LORA)
         return 0;
-    
-    val = (SX1278Read(REG_LR_FEIMSB) & 0b1111) << 16; // high word, 4 valid bits only
+
+    val = (SX1278Read(REG_LR_FEIMSB) & 0x0F) << 16; // high word, 4 valid bits only
     val |= ((SX1278Read(REG_LR_FEIMID) << 8) | SX1278Read(REG_LR_FEILSB)); // high byte, low byte
     if (val & 0x80000) //convert sign bit
         val |= 0xfff00000;
-    
+
     int32_t bandwidth = 0;
     for (int i = 0; i < (int)(sizeof(SX1278LoRaBandwidths) / sizeof(BandwidthMap_t)) -1; i++ ) {
         if (SX1278LoRaBandwidths[i].RegValue == settings.LoRa.Bandwidth) {
@@ -1122,11 +1123,11 @@ int32_t SX1278GetFrequencyError(RadioModems_t modem )
     }
     if (!bandwidth)
     	return 0;
-    
+
     float bandWidthkHz = (float)bandwidth/1000;
-    
+
     int32_t hz = (((float)val * (float)(1<<24)) / ((float)XTAL_FREQ)) * (bandWidthkHz / 500.0);
-        
+
     return hz;
 }
 
@@ -1261,7 +1262,7 @@ void OnTimeoutIrq()
         // Tx timeout shouldn't happen.
         // But it has been observed that when it happens it is a result of a corrupted SPI transfer
         // it depends on the platform design.
-        // 
+        //
         // The workaround is to put the radio in a known state. Thus, we re-initialize it.
 
         // BEGIN WORKAROUND
@@ -1373,6 +1374,7 @@ uint8_t SX1278GetPaSelect(uint32_t channel)
 bool SX1278CheckRfFrequency(uint32_t frequency)
 {
     // Implement check. Currently all frequencies are supported
+    (void)frequency;
     return true;
 }
 
@@ -1467,7 +1469,7 @@ uint8_t GetFskBandwidthRegValue(uint32_t bandwidth)
 uint8_t GetLoRaBandwidthRegValue(uint32_t bandwidth)
 {
     uint8_t i;
-    
+
     for (i = 0; i < (sizeof(SX1278LoRaBandwidths) / sizeof(BandwidthMap_t)) - 1; i++)
     {
         if ((bandwidth >= SX1278LoRaBandwidths[i].bandwidth) && (bandwidth < SX1278LoRaBandwidths[i + 1].bandwidth))
@@ -1679,7 +1681,7 @@ void OnDio1Irq()
                 case MODEM_FSK:
                     // Stop Timer
                     SX1278SetTimeout(RXTimeoutSyncWordTimer, NULL, 0);
-                    
+
                     // FifoLevel interrupt
                     // SX1278Read received packet size
                     if ((settings.FskPacketHandler.Size == 0) && (settings.FskPacketHandler.NbBytes == 0))
